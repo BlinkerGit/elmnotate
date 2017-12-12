@@ -3,7 +3,9 @@ module View exposing (view)
 import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
 import FileReader exposing (NativeFile)
 import Html exposing (Html, div, nav, span, text, a, canvas)
-import Html.Attributes exposing (class, type_, href, downloadAs, style)
+import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled)
+import Html.Events as HEvt
+import MouseEvents exposing (onClick)
 import Http exposing (encodeUri)
 import Model exposing (Model, Image)
 import Update exposing (Msg(..))
@@ -20,10 +22,24 @@ view model =
 
 header : Model -> Html Msg
 header model =
-    nav [ class "navbar fixed-top navbar-light bg-light" ]
+    let
+        todo =
+            List.length model.pending
+        done =
+            List.length model.processed
+        total =
+            todo + done
+        msg =
+            case total of
+                0 -> ""
+                _ -> 
+                    ((toString (done + 1)) ++ " of " ++ (toString total))
+    in
+    nav [ class "navbar fixed-top navbar-light bg-light justify-content-between" ]
         [ span [ class "navbar-brand" ]
                [ text "Annotate"]
-
+        , span []
+               [ text msg ]
         ]
 
 body : Model -> Html Msg
@@ -95,6 +111,7 @@ inProcess model =
                , ( "background-size", "contain" )
                , ( "background-repeat", "no-repeat" )
                ]
+           , onClick AddPoint
            ]
            []
 
@@ -105,10 +122,26 @@ footer model =
             "{\"some\":\"json\"}"
         encoded =
             encodeUri json
+        cantNext =
+            List.isEmpty model.pending
+        cantPrev =
+            List.isEmpty model.processed
     in
 
-        nav [ class "navbar fixed-bottom navbar-light bg-light justify-content-end" ]
-            [ div [ class "float-right" ]
+        nav [ class "navbar fixed-bottom navbar-light bg-light justify-content-between" ]
+            [ div [ class "float-left"]
+                  [ a [ class "btn btn-outline-primary btn-sm mr-1"
+                      , HEvt.onClick NavPrev
+                      , disabled cantPrev
+                      ]
+                      [ text "Prev" ]
+                  , a [ class "btn btn-outline-primary btn-sm"
+                      , HEvt.onClick NavNext
+                      , disabled cantNext
+                      ]
+                      [ text "Next" ]
+                  ]
+            , div [ class "float-right" ]
                   [ a [ class "btn btn-primary btn-sm"
                       , href <| "data:application/json;charset=utf-8," ++ encoded
                       , downloadAs "data.json"
