@@ -4,12 +4,14 @@ import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
 import MouseEvents
 import Task
-import Model exposing (Model, Image)
+import Model exposing (Model, Image, Point, Offset)
+import Canvas exposing (renderPoints, loadImage)
 
 type Msg
     = NoOp
     | DnD (DropZoneMessage (List NativeFile))
     | OnFileContent (Result FileReader.Error String)
+    | ImageSize Offset
     | AddPoint MouseEvents.MouseEvent
     | NavPrev
     | NavNext
@@ -35,18 +37,18 @@ update msg model =
                 pending =
                     new_images ++ model.pending
                 -- TODO dedupe?
+                cmd =
+                    loadImageCmd pending
             in
             ( { model | pending = pending }
-            , Cmd.none
+            , cmd
             )
         OnFileContent (Err error) ->
             (model, Cmd.none)
-        AddPoint mouse ->
-            let
-                log =
-                    Debug.log "AddPoint" mouse
-            in
+        ImageSize point ->
             (model, Cmd.none)
+        AddPoint mouse ->
+            (model, renderPoints [Point 10 10])
         NavPrev ->
             let
                 processed =
@@ -59,9 +61,11 @@ update msg model =
                             model.pending
                         Just i ->
                             i :: model.pending
+                cmd =
+                    loadImageCmd pending
             in
             ( { model | pending = pending, processed = processed }
-            , Cmd.none
+            , cmd
             )
         NavNext ->
             let
@@ -75,10 +79,18 @@ update msg model =
                             model.processed
                         Just i ->
                             i :: model.processed
+                cmd =
+                    loadImageCmd pending
             in
             ( { model | pending = pending, processed = processed }
-            , Cmd.none
+            , cmd
             )
+
+loadImageCmd : List Image -> Cmd Msg
+loadImageCmd pending =
+    List.head pending
+        |> Maybe.map (\i -> loadImage i.url)
+        |> Maybe.withDefault Cmd.none
 
 uploadHandler : NativeFile -> Cmd Msg
 uploadHandler file =
