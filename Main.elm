@@ -1,13 +1,14 @@
 module Main exposing (..)
 
 import Html exposing (program)
+import DropZone
 import Model exposing (Model)
 import View exposing (view)
 import Update exposing (Msg(..), update)
 
 init : (Model, Cmd Msg)
 init =
-    (Model [] [], Cmd.none)
+    (Model [] [] DropZone.init, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =

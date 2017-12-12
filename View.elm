@@ -1,10 +1,12 @@
 module View exposing (view)
 
-import Html exposing (Html, div, nav, span, text, a)
-import Html.Attributes exposing (class, type_, href, downloadAs)
+import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
+import FileReader exposing (NativeFile)
+import Html exposing (Html, div, nav, span, text, a, canvas)
+import Html.Attributes exposing (class, type_, href, downloadAs, style)
 import Http exposing (encodeUri)
-import Model exposing (Model)
-import Update exposing (Msg)
+import Model exposing (Model, Image)
+import Update exposing (Msg(..))
 
 
 view : Model -> Html Msg
@@ -18,7 +20,7 @@ view model =
 
 header : Model -> Html Msg
 header model =
-    nav [ class "navbar navbar-expand-lg navbar-light bg-light" ]
+    nav [ class "navbar fixed-top navbar-light bg-light" ]
         [ span [ class "navbar-brand" ]
                [ text "Annotate"]
 
@@ -26,6 +28,11 @@ header model =
 
 body : Model -> Html Msg
 body model =
+    div [ class "body-content" ]
+        [ bodyContent model ]
+
+bodyContent : Model -> Html Msg
+bodyContent model =
     let
         todo =
             List.length model.pending
@@ -42,8 +49,35 @@ body model =
 
 getStarted : Model -> Html Msg
 getStarted model =
-    -- todo: dropzone
-    text "to get started, drop a .txt file of URLs, one per line, here"
+    Html.map DnD
+        (div (dzAttributes model.dropZone)
+             [ text "to get started, drop a .txt file of URLs, one per line, here"
+             ]
+        )
+
+dzAttributes : DropZone.Model -> List (Html.Attribute (DropZoneMessage (List NativeFile)))
+dzAttributes dropZoneModel =
+    (if DropZone.isHovering dropZoneModel then
+        dropZoneHover
+     else
+        dropZoneDefault
+    ) :: dropZoneEventHandlers FileReader.parseDroppedFiles
+
+dropZoneHover : Html.Attribute a
+dropZoneHover =
+    style
+        [ ( "height", "120px" )
+        , ( "border-radius", "10px" )
+        , ( "border", "3px dashed blue" )
+        ]
+
+dropZoneDefault : Html.Attribute a
+dropZoneDefault =
+    style
+        [ ( "height", "120px" )
+        , ( "border-radius", "10px" )
+        , ( "border", "3px dashed steelblue" )
+        ]
 
 complete : Model -> Html Msg
 complete model =
@@ -51,7 +85,18 @@ complete model =
 
 inProcess : Model -> Html Msg
 inProcess model =
-    text "TODO: canvas w/current image"
+    let
+        img =
+            List.head model.pending
+                |> Maybe.withDefault (Image "http://placekitten.com" [])
+    in
+    canvas [ style
+               [ ( "background-image", ("url(" ++ img.url ++ ")") )
+               , ( "background-size", "contain" )
+               , ( "background-repeat", "no-repeat" )
+               ]
+           ]
+           []
 
 footer : Model -> Html Msg
 footer model =

@@ -1,5 +1,7 @@
 module Model exposing (..)
 
+import DropZone
+
 type alias Point =
     { x: Int
     , y: Int
@@ -27,4 +29,5 @@ type alias Image =
 type alias Model =
     { pending: List Image
     , processed: List Image
+    , dropZone: DropZone.Model
     }
