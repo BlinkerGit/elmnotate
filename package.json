@@ -2,17 +2,18 @@
   "name": "annotate",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
     "elm:make": "elm make Main.elm --output elm.js || true",
     "elm:watch": "chokidar '**/*.elm' -c 'npm run elm:make'",
-    "start": "electron main.js",
+    "start": "NODE_ENV=${NODE_ENV-development} electron main.js",
     "watch": "npm run start & npm run elm:watch & wait"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "chokidar": "^1.7.0"
+    "chokidar": "^1.7.0",
+    "electron-packager": "^10.1.0"
   },
   "dependencies": {
     "bootstrap": "^4.0.0-beta.2"
