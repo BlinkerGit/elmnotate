@@ -9,6 +9,7 @@ import MouseEvents as ME
 import Http exposing (encodeUri)
 import Model exposing (Model, Image, PendingGeometry(..))
 import Update exposing (Msg(..))
+import Serialization
 
 
 view : Model -> Html Msg
@@ -30,27 +31,35 @@ header model =
         total =
             todo + done
         msg =
-            case total of
-                0 -> ""
-                _ -> 
+            case (total, todo) of
+                (0, _) -> ""
+                (_, 0) -> ""
+                (_, _) ->
                     ((toString (done + 1)) ++ " of " ++ (toString total))
     in
     nav [ class "navbar fixed-top navbar-light bg-light justify-content-between" ]
         [ span [ class "navbar-brand" ]
                [ text "Annotate"]
-        , div  []
-               [ button [ class "btn btn-primary btn-xs"
-                        , onClick <| NewShape (PendingRect [])
-                        ]
-                        [ text "R" ]
-               , button [ class "btn btn-primary btn-xs"
-                        , onClick <| NewShape (PendingQuad [])
-                        ]
-                        [ text "Q" ]
-               ]
+        , maybeShapeButtons (todo > 0)
         , span []
                [ text msg ]
         ]
+
+maybeShapeButtons : Bool -> Html Msg
+maybeShapeButtons flag =
+    if flag then
+        div  []
+             [ button [ class "btn btn-primary btn-xs mr-1"
+                      , onClick <| NewShape (PendingRect [])
+                      ]
+                      [ text "R" ]
+             , button [ class "btn btn-primary btn-xs"
+                      , onClick <| NewShape (PendingQuad [])
+                      ]
+                      [ text "Q" ]
+             ]
+    else
+        Html.text ""
 
 body : Model -> Html Msg
 body model =
@@ -114,7 +123,7 @@ inProcess model =
     let
         img =
             List.head model.pending
-                |> Maybe.withDefault (Image "http://placekitten.com" [])
+                |> Maybe.withDefault (Image "https://placekitten.com/g/720/540" [])
         url =
             "url(" ++ img.url ++ ")"
     in
@@ -134,7 +143,7 @@ footer : Model -> Html Msg
 footer model =
     let
         json =
-            "{\"some\":\"json\"}"
+            Serialization.toJson model
         encoded =
             encodeUri json
         cantNext =
@@ -142,26 +151,31 @@ footer model =
         cantPrev =
             List.isEmpty model.processed
     in
+    nav [ class "navbar fixed-bottom navbar-light bg-light justify-content-between" ]
+        [ div [ class "float-left"]
+              [ button [ class "btn btn-outline-primary btn-sm mr-1"
+                       , onClick NavPrev
+                       , disabled cantPrev
+                       ]
+                       [ text "Prev" ]
+              , button [ class "btn btn-outline-primary btn-sm"
+                       , onClick NavNext
+                       , disabled cantNext
+                       ]
+                       [ text "Next" ]
+              ]
+        , div [ class "float-right" ]
+              [ maybeButton cantPrev encoded
+              ]
+        ]
 
-        nav [ class "navbar fixed-bottom navbar-light bg-light justify-content-between" ]
-            [ div [ class "float-left"]
-                  [ button [ class "btn btn-outline-primary btn-sm mr-1"
-                           , onClick NavPrev
-                           , disabled cantPrev
-                           ]
-                           [ text "Prev" ]
-                  , button [ class "btn btn-outline-primary btn-sm"
-                           , onClick NavNext
-                           , disabled cantNext
-                           ]
-                           [ text "Next" ]
-                  ]
-            , div [ class "float-right" ]
-                  [ button [ class "btn btn-primary btn-sm"
-                           , href <| "data:application/json;charset=utf-8," ++ encoded
-                           , downloadAs "data.json"
-                           , disabled cantPrev
-                           ]
-                           [ text "Download" ]
-                  ]
-            ]
+maybeButton : Bool -> String -> Html Msg
+maybeButton disabled json =
+    if disabled then
+        Html.text ""
+    else
+        a [ class "btn btn-primary btn-sm"
+          , href <| "data:application/json;charset=utf-8," ++ json
+          , downloadAs "data.json"
+          ]
+          [ text "Download" ]
