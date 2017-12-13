@@ -8,9 +8,6 @@ let container = document.getElementById('container')
 // and keep a reference for communicating with the app
 let annotate = Elm.Main.embed(container)
 
-let canvas = null;
-let ctx = null;
-
 // draw graphics on the canvas
 annotate.ports.render.subscribe(function(graphics) {
     console.log("render", graphics);
@@ -46,6 +43,15 @@ function clearCanvas() {
         const ctx = canvas.getContext('2d');
         console.log(`clearing rect 0, 0 to ${canvas.width}, ${canvas.height}`);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // HACK: draw something transparent to trigger canvas repaint
+        ctx.globalAlpha = 0.01;
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, tau, false);
+        ctx.fillStyle = 'red';
+        ctx.fill();
+
+        ctx.globalAlpha = 1.0;
     }
 }
 
