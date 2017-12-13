@@ -2,12 +2,12 @@ module View exposing (view)
 
 import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
 import FileReader exposing (NativeFile)
-import Html exposing (Html, div, nav, span, text, a, canvas)
-import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled)
-import Html.Events as HEvt
-import MouseEvents exposing (onClick)
+import Html exposing (Html, div, nav, span, text, a, canvas, button)
+import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height)
+import Html.Events exposing (onClick)
+import MouseEvents as ME
 import Http exposing (encodeUri)
-import Model exposing (Model, Image)
+import Model exposing (Model, Image, PendingGeometry(..))
 import Update exposing (Msg(..))
 
 
@@ -38,6 +38,16 @@ header model =
     nav [ class "navbar fixed-top navbar-light bg-light justify-content-between" ]
         [ span [ class "navbar-brand" ]
                [ text "Annotate"]
+        , div  []
+               [ button [ class "btn btn-primary btn-xs"
+                        , onClick <| NewShape (PendingRect [])
+                        ]
+                        [ text "R" ]
+               , button [ class "btn btn-primary btn-xs"
+                        , onClick <| NewShape (PendingQuad [])
+                        ]
+                        [ text "Q" ]
+               ]
         , span []
                [ text msg ]
         ]
@@ -105,13 +115,18 @@ inProcess model =
         img =
             List.head model.pending
                 |> Maybe.withDefault (Image "http://placekitten.com" [])
+        url =
+            "url(" ++ img.url ++ ")"
     in
     canvas [ style
-               [ ( "background-image", ("url(" ++ img.url ++ ")") )
-               , ( "background-size", "contain" )
+               [ ( "background-image",   url )
+               , ( "background-size",   "contain" )
                , ( "background-repeat", "no-repeat" )
                ]
-           , onClick AddPoint
+           , ME.onClick AddPoint
+           , id "annotate-canvas"
+           , width model.width
+           , height model.height
            ]
            []
 
@@ -130,22 +145,23 @@ footer model =
 
         nav [ class "navbar fixed-bottom navbar-light bg-light justify-content-between" ]
             [ div [ class "float-left"]
-                  [ a [ class "btn btn-outline-primary btn-sm mr-1"
-                      , HEvt.onClick NavPrev
-                      , disabled cantPrev
-                      ]
-                      [ text "Prev" ]
-                  , a [ class "btn btn-outline-primary btn-sm"
-                      , HEvt.onClick NavNext
-                      , disabled cantNext
-                      ]
-                      [ text "Next" ]
+                  [ button [ class "btn btn-outline-primary btn-sm mr-1"
+                           , onClick NavPrev
+                           , disabled cantPrev
+                           ]
+                           [ text "Prev" ]
+                  , button [ class "btn btn-outline-primary btn-sm"
+                           , onClick NavNext
+                           , disabled cantNext
+                           ]
+                           [ text "Next" ]
                   ]
             , div [ class "float-right" ]
-                  [ a [ class "btn btn-primary btn-sm"
-                      , href <| "data:application/json;charset=utf-8," ++ encoded
-                      , downloadAs "data.json"
-                      ]
-                      [ text "Download" ]
+                  [ button [ class "btn btn-primary btn-sm"
+                           , href <| "data:application/json;charset=utf-8," ++ encoded
+                           , downloadAs "data.json"
+                           , disabled cantPrev
+                           ]
+                           [ text "Download" ]
                   ]
             ]

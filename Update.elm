@@ -4,14 +4,15 @@ import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
 import MouseEvents
 import Task
-import Model exposing (Model, Image, Point, Offset)
-import Canvas exposing (renderPoints, loadImage)
+import Model exposing (Model, Image, Point, Offset, Shape, Geometry(..), PendingGeometry(..), graphics)
+import Canvas exposing (render, loadImage)
 
 type Msg
     = NoOp
     | DnD (DropZoneMessage (List NativeFile))
     | OnFileContent (Result FileReader.Error String)
     | ImageSize Offset
+    | NewShape PendingGeometry
     | AddPoint MouseEvents.MouseEvent
     | NavPrev
     | NavNext
@@ -45,10 +46,30 @@ update msg model =
             )
         OnFileContent (Err error) ->
             (model, Cmd.none)
-        ImageSize point ->
-            (model, Cmd.none)
+        ImageSize offset ->
+            let
+                log =
+                    Debug.log "ImageSize" model
+            in
+            ( { model | width = offset.w, height = offset.h }
+            , render <| graphics model
+            )
+        NewShape s ->
+            ( { model | pendingGeom = s }
+            , render <| graphics model
+            )
         AddPoint mouse ->
-            (model, renderPoints [Point 10 10])
+            let
+                x =
+                    mouse.clientPos.x - mouse.targetPos.x
+                y =
+                    mouse.clientPos.y - mouse.targetPos.y
+                p =
+                    Point x y
+                updated =
+                    addPoint model p
+            in
+            (updated, render <| graphics updated)
         NavPrev ->
             let
                 processed =
@@ -64,7 +85,7 @@ update msg model =
                 cmd =
                     loadImageCmd pending
             in
-            ( { model | pending = pending, processed = processed }
+            ( { model | pending = pending, processed = processed, pendingGeom = NoShape }
             , cmd
             )
         NavNext ->
@@ -82,9 +103,83 @@ update msg model =
                 cmd =
                     loadImageCmd pending
             in
-            ( { model | pending = pending, processed = processed }
+            ( { model | pending = pending, processed = processed, pendingGeom = NoShape }
             , cmd
             )
+
+addPoint : Model -> Point -> Model
+addPoint m p =
+    let
+        pg =
+            case m.pendingGeom of
+                NoShape ->
+                    NoShape
+                PendingRect points ->
+                    PendingRect (points ++ [p])
+                PendingQuad points ->
+                    PendingQuad (points ++ [p])
+        g =
+            completedShape pg
+        current =
+            List.head m.pending
+                |> Maybe.withDefault (Image "" [])
+        current_ =
+            case g of
+                Nothing -> current
+                Just s -> { current | shapes = (Shape "" s) :: current.shapes }
+        newPending =
+            current_ :: (List.drop 1 m.pending)
+        updated =
+            case g of
+                Nothing ->
+                    { m | pendingGeom = pg }
+                Just cg ->
+                    { m | pendingGeom = NoShape, pending = newPending }
+    in
+    updated
+
+completedShape : PendingGeometry -> Maybe Geometry
+completedShape pg =
+    case pg of
+        NoShape -> Nothing
+        PendingRect points ->
+            if List.length points < 2 then
+                Nothing
+            else
+                let
+                    tl =
+                        List.head points
+                            |> Maybe.withDefault (Point -1 -1)
+                    br =
+                        List.drop 1 points
+                            |> List.head
+                            |> Maybe.withDefault (Point -1 -1)
+                    o =
+                        Offset (br.x - tl.x) (br.y - tl.y)
+                in
+                Just (Rect tl o)
+        PendingQuad points ->
+            if List.length points < 4 then
+                Nothing
+            else
+                let
+                    tl =
+                        List.head points
+                            |> Maybe.withDefault (Point -1 -1)
+                    tr =
+                        List.drop 1 points
+                            |> List.head
+                            |> Maybe.withDefault (Point -1 -1)
+                    br =
+                        List.drop 2 points
+                            |> List.head
+                            |> Maybe.withDefault (Point -1 -1)
+                    bl =
+                        List.drop 3 points
+                            |> List.head
+                            |> Maybe.withDefault (Point -1 -1)
+                in
+                Just (Quad tl tr br bl)
 
 loadImageCmd : List Image -> Cmd Msg
 loadImageCmd pending =

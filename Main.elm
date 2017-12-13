@@ -12,7 +12,7 @@ import Canvas exposing (imageSize)
 
 init : (Model, Cmd Msg)
 init =
-    (Model [] [] DropZone.init, Cmd.none)
+    (Model.init, Cmd.none)
 
 subscriptions : Model -> Sub Msg
 subscriptions model =

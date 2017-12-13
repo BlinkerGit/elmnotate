@@ -1,11 +1,10 @@
 port module Canvas exposing (..)
 
 import Json.Encode exposing (Value)
-import Model exposing (Point)
+import Model exposing (Graphics)
 
 -- send points to be rendered
-port renderPoints : (List Point) -> Cmd msg
-port renderLines : (List Point) -> Cmd msg
+port render : Graphics -> Cmd msg
 
 -- listen for image size
 port loadImage : String -> Cmd msg
