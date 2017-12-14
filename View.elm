@@ -2,12 +2,12 @@ module View exposing (view)
 
 import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
 import FileReader exposing (NativeFile)
-import Html exposing (Html, div, nav, span, text, a, canvas, button)
+import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tr, td, input)
 import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height)
 import Html.Events exposing (onClick)
 import MouseEvents as ME
 import Http exposing (encodeUri)
-import Model exposing (Model, Image, PendingGeometry(..))
+import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..))
 import Update exposing (Msg(..))
 import Serialization
 
@@ -40,20 +40,32 @@ header model =
     nav [ class "navbar fixed-top navbar-light bg-light justify-content-between" ]
         [ span [ class "navbar-brand" ]
                [ text "Annotate"]
-        , maybeShapeButtons (todo > 0)
+        , maybeShapeButtons (todo > 0) model.pendingGeom
         , span []
                [ text msg ]
         ]
 
-maybeShapeButtons : Bool -> Html Msg
-maybeShapeButtons flag =
+maybeShapeButtons : Bool -> PendingGeometry -> Html Msg
+maybeShapeButtons flag pend =
     if flag then
+        let
+            baseClass =
+                "btn btn-sm mr-1 "
+            rectClass =
+                case pend of
+                    PendingRect _ -> baseClass ++ "btn-primary"
+                    _ -> baseClass ++ "btn-outline-primary"
+            quadClass =
+                case pend of
+                    PendingQuad _ -> baseClass ++ "btn-primary"
+                    _ -> baseClass ++ "btn-outline-primary"
+        in
         div  []
-             [ button [ class "btn btn-primary btn-xs mr-1"
+             [ button [ class rectClass
                       , onClick <| NewShape (PendingRect [])
                       ]
                       [ text "R" ]
-             , button [ class "btn btn-primary btn-xs"
+             , button [ class quadClass
                       , onClick <| NewShape (PendingQuad [])
                       ]
                       [ text "Q" ]
@@ -84,11 +96,13 @@ bodyContent model =
 
 getStarted : Model -> Html Msg
 getStarted model =
-    Html.map DnD
-        (div (dzAttributes model.dropZone)
-             [ text "to get started, drop a .txt file of URLs, one per line, here"
-             ]
-        )
+    div [ class "center-pad" ]
+        [ Html.map DnD
+            (div (dzAttributes model.dropZone)
+                [ text "to get started, drop a .txt file of URLs, one per line, here"
+                ]
+            )
+        ]
 
 dzAttributes : DropZone.Model -> List (Html.Attribute (DropZoneMessage (List NativeFile)))
 dzAttributes dropZoneModel =
@@ -116,10 +130,22 @@ dropZoneDefault =
 
 complete : Model -> Html Msg
 complete model =
-    text "all done!  download your data below:"
+    div [ class "center-pad" ]
+        [ text "all done!  download your data below:"
+        ]
 
 inProcess : Model -> Html Msg
 inProcess model =
+    div [ class "row" ]
+        [ div [ class "col-8" ]
+              [ drawing model
+              ]
+        , div [ class "col-4" ]
+              [ shapeList model ]
+        ]
+
+drawing : Model -> Html Msg
+drawing model =
     let
         img =
             List.head model.pending
@@ -138,6 +164,42 @@ inProcess model =
            , height model.height
            ]
            []
+
+shapeList : Model -> Html Msg
+shapeList model =
+    let
+        img =
+            List.head model.pending
+                |> Maybe.withDefault (Image "" [])
+    in
+    div []
+        [ h6 [] [ text "Shapes"]
+        , table [ class "table table-sm table-bordered table-striped" ]
+                (List.indexedMap shapeRow img.shapes)
+        ]
+
+shapeRow : Int -> Shape -> Html Msg
+shapeRow index s =
+    let
+        shapeType s =
+            case s of
+                Rect _ _-> "rect"
+                Quad _ _ _ _ -> "quad"
+    in
+    tr []
+       [ td []
+            [ text <| shapeType s.geom ]
+       , td []
+            [ input [ class "form-control" ]
+                    []
+            ]
+       , td []
+            [ button [ class "btn btn-danger btn-sm"
+                     , onClick <| DeleteShape index
+                     ]
+                     [ text "Delete" ]
+            ]
+       ]
 
 footer : Model -> Html Msg
 footer model =

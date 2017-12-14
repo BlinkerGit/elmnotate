@@ -13,6 +13,7 @@ type Msg
     | OnFileContent (Result FileReader.Error String)
     | ImageSize Offset
     | NewShape PendingGeometry
+    | DeleteShape Int
     | AddPoint MouseEvents.MouseEvent
     | NavPrev
     | NavNext
@@ -57,6 +58,27 @@ update msg model =
         NewShape s ->
             ( { model | pendingGeom = s }
             , render <| graphics model
+            )
+        DeleteShape index ->
+            let
+                img_ =
+                    List.head model.pending
+                        |> Maybe.withDefault (Image "" [])
+                h =
+                    List.take index img_.shapes
+                t =
+                    List.drop (index + 1) img_.shapes
+                s =
+                    h ++ t
+                img =
+                    { img_ | shapes = s }
+                pending =
+                    img :: (List.drop 1 model.pending)
+                updated =
+                    { model | pending = pending }
+            in
+            ( updated
+            , render <| graphics updated
             )
         AddPoint mouse ->
             let
