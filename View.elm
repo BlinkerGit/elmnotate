@@ -137,10 +137,10 @@ complete model =
 inProcess : Model -> Html Msg
 inProcess model =
     div [ class "row" ]
-        [ div [ class "col-8" ]
+        [ div [ class "col-8 drawing-panel" ]
               [ drawing model
               ]
-        , div [ class "col-4" ]
+        , div [ class "col-4 shape-list-panel" ]
               [ shapeList model ]
         ]
 
