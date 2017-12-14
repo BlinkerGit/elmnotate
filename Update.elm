@@ -48,10 +48,6 @@ update msg model =
         OnFileContent (Err error) ->
             (model, Cmd.none)
         ImageSize offset ->
-            let
-                log =
-                    Debug.log "ImageSize" model
-            in
             ( { model | width = offset.w, height = offset.h }
             , render <| graphics model
             )
@@ -94,6 +90,11 @@ update msg model =
             (updated, render <| graphics updated)
         NavPrev ->
             let
+                nextPending =
+                    case model.pendingGeom of
+                        NoShape -> NoShape
+                        PendingRect _ -> PendingRect []
+                        PendingQuad _ -> PendingQuad []
                 processed =
                     List.drop 1 model.processed
                 img =
@@ -107,11 +108,16 @@ update msg model =
                 cmd =
                     loadImageCmd pending
             in
-            ( { model | pending = pending, processed = processed, pendingGeom = NoShape }
+            ( { model | pending = pending, processed = processed, pendingGeom = nextPending }
             , cmd
             )
         NavNext ->
             let
+                nextPending =
+                    case model.pendingGeom of
+                        NoShape -> NoShape
+                        PendingRect _ -> PendingRect []
+                        PendingQuad _ -> PendingQuad []
                 pending =
                     List.drop 1 model.pending
                 img =
@@ -125,7 +131,7 @@ update msg model =
                 cmd =
                     loadImageCmd pending
             in
-            ( { model | pending = pending, processed = processed, pendingGeom = NoShape }
+            ( { model | pending = pending, processed = processed, pendingGeom = nextPending }
             , cmd
             )
 
@@ -140,6 +146,14 @@ addPoint m p =
                     PendingRect (points ++ [p])
                 PendingQuad points ->
                     PendingQuad (points ++ [p])
+        nextPending =
+            case m.pendingGeom of
+                NoShape ->
+                    NoShape
+                PendingRect points ->
+                    PendingRect []
+                PendingQuad points ->
+                    PendingQuad []
         g =
             completedShape pg
         current =
@@ -156,7 +170,7 @@ addPoint m p =
                 Nothing ->
                     { m | pendingGeom = pg }
                 Just cg ->
-                    { m | pendingGeom = NoShape, pending = newPending }
+                    { m | pendingGeom = nextPending, pending = newPending }
     in
     updated
 

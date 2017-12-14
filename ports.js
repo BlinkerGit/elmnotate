@@ -10,7 +10,6 @@ let annotate = Elm.Main.embed(container)
 
 // draw graphics on the canvas
 annotate.ports.render.subscribe(function(graphics) {
-    console.log("render", graphics);
     clearCanvas();
     graphics.points.forEach(point => {
         drawPoint(point.x, point.y);
@@ -37,11 +36,9 @@ function getImageSize(url, cb) {
 }
 
 function clearCanvas() {
-    console.log("called clear canvas...")
     const canvas = document.getElementById("annotate-canvas");
     if (canvas) {
         const ctx = canvas.getContext('2d');
-        console.log(`clearing rect 0, 0 to ${canvas.width}, ${canvas.height}`);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // HACK: draw something transparent to trigger canvas repaint
