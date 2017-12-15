@@ -181,14 +181,16 @@ shapeList model =
 shapeRow : Int -> Shape -> Html Msg
 shapeRow index s =
     let
-        shapeType s =
+        geomType s =
             case s of
                 Rect _ _-> "rect"
                 Quad _ _ _ _ -> "quad"
     in
     tr []
        [ td []
-            [ text <| shapeType s.geom ]
+            [ text <| geomType s.geom
+            , maybeConvertButton s.geom index
+            ]
        , td []
             [ input [ class "form-control" ]
                     []
@@ -200,6 +202,17 @@ shapeRow index s =
                      [ text "Delete" ]
             ]
        ]
+
+maybeConvertButton : Geometry -> Int -> Html Msg
+maybeConvertButton g index =
+    case g of
+        Rect _ _ ->
+            a [ class "btn btn-warning btn-sm"
+              , onClick (ConvertRect index)
+              ]
+              [ text "convert" ]
+        Quad _ _ _ _ ->
+            text ""
 
 footer : Model -> Html Msg
 footer model =

@@ -15,6 +15,7 @@ type Msg
     | NewShape PendingGeometry
     | DeleteShape Int
     | AddPoint MouseEvents.MouseEvent
+    | ConvertRect Int
     | NavPrev
     | NavNext
 
@@ -88,6 +89,31 @@ update msg model =
                     addPoint model p
             in
             (updated, render <| graphics updated)
+        ConvertRect index ->
+            let
+                img_ =
+                    List.head model.pending
+                        |> Maybe.withDefault (Image "" [])
+                h =
+                    List.take index img_.shapes
+                s_ =
+                    List.drop index img_.shapes
+                        |> List.head
+                        |> Maybe.withDefault (Shape "" (Rect (Point 0 0) (Offset 0 0)))
+                s =
+                    { s_ | geom = toQuad s_.geom }
+                t =
+                    List.drop (index + 1) img_.shapes
+                img =
+                    { img_ | shapes = h ++ [s] ++ t }
+                pending =
+                    img :: (List.drop 1 model.pending)
+                updated =
+                    { model | pending = pending }
+            in
+            ( updated
+            , Cmd.none
+            )
         NavPrev ->
             let
                 nextPending =
@@ -134,6 +160,19 @@ update msg model =
             ( { model | pending = pending, processed = processed, pendingGeom = nextPending }
             , cmd
             )
+
+toQuad : Geometry -> Geometry
+toQuad g =
+    case g of
+        Rect p o ->
+            let
+                tl = p
+                tr = { tl | x = p.x + o.w }
+                br = { tr | y = p.y + o.h }
+                bl = { tl | y = p.y + o.h }
+            in
+            Quad tl tr br bl
+        Quad _ _ _ _ -> g
 
 addPoint : Model -> Point -> Model
 addPoint m p =
