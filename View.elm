@@ -155,11 +155,18 @@ drawing model =
             (toFloat model.imageSize.w) * model.scale |> round
         h =
             (toFloat model.imageSize.h) * model.scale |> round
+        cursor =
+            case (model.hoverPoint, model.dragPoint) of
+                (Nothing, Nothing) ->
+                    "crosshair"
+                (_, _) ->
+                    "move"
     in
     canvas [ style
                [ ( "background-image",   url )
                , ( "background-size",   "contain" )
                , ( "background-repeat", "no-repeat" )
+               , ( "cursor",            cursor )
                ]
            , id "annotate-canvas"
            , width w
