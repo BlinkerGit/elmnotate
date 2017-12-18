@@ -26,7 +26,9 @@ if (chokidar) {
 function createWindow () {
   mainWindow = new BrowserWindow({
     width: 1024, 
-    height: 768
+    height: 768,
+    minWidth: 640,
+    minHeight: 480,
   })
 
   // display the index.html file

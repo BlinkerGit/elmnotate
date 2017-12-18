@@ -8,7 +8,7 @@ import Window
 import Model exposing (Model, Offset)
 import View exposing (view)
 import Update exposing (Msg(..), update)
-import Canvas exposing (imageSize)
+import Canvas exposing (clientDims)
 
 init : (Model, Cmd Msg)
 init =
@@ -18,12 +18,12 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     -- todo: add mouse clicks, downs, ups, and moves (if dragging)
     Sub.batch
-        [ imageSize (decodeImageSize)
+        [ clientDims (decodeClientDims)
         , Window.resizes (\{height, width} -> WindowResized (Offset width height))
         ]
 
-decodeImageSize : Value -> Msg
-decodeImageSize value =
+decodeClientDims : Value -> Msg
+decodeClientDims value =
     let
         result =
             decodeValue (array int) value
@@ -31,14 +31,20 @@ decodeImageSize value =
     case result of
         Ok dims ->
             let
-                w =
+                imgW =
                     Array.get 0 dims |> Maybe.withDefault -1
-                h =
+                imgH =
                     Array.get 1 dims |> Maybe.withDefault -1
-                offset =
-                    Offset w h
+                imgSize =
+                    Offset imgW imgH
+                pnlW =
+                    Array.get 2 dims |> Maybe.withDefault -1
+                pnlH =
+                    Array.get 3 dims |> Maybe.withDefault -1
+                pnlSize =
+                    Offset pnlW pnlH
             in
-            ImageSize offset
+            ClientDims imgSize pnlSize
         Err _ ->
             NoOp
 

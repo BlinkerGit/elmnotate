@@ -22,8 +22,29 @@ annotate.ports.render.subscribe(function(graphics) {
 // discover the image size and report back to elm
 annotate.ports.loadImage.subscribe(function(url) {
     clearCanvas();
-    getImageSize(url, function(w, h) {
-        annotate.ports.imageSize.send([w, h]);
+    getImageSize(url, function(imgW, imgH) {
+        let updateDims = function() {
+            let canvasWrapper = document.getElementById('canvas-wrapper');
+            if (canvasWrapper) {
+                let panelSize = {
+                    width: canvasWrapper.offsetWidth,
+                    height: canvasWrapper.offsetHeight,
+                };
+
+                console.log("updating clientDims port...");
+                annotate.ports.clientDims.send([
+                    imgW,
+                    imgH,
+                    panelSize.width,
+                    panelSize.height
+                ]);
+            } else {
+                console.log("canvas wrapper not found, polling...");
+                window.setTimeout(updateDims, 10);
+            }
+        };
+
+        updateDims();
     });
 });
 

@@ -11,7 +11,7 @@ type Msg
     = NoOp
     | DnD (DropZoneMessage (List NativeFile))
     | OnFileContent (Result FileReader.Error String)
-    | ImageSize Offset
+    | ClientDims Offset Offset
     | WindowResized Offset
     | NewShape PendingGeometry
     | DeleteShape Int
@@ -49,8 +49,20 @@ update msg model =
             )
         OnFileContent (Err error) ->
             (model, Cmd.none)
-        ImageSize offset ->
-            ( { model | width = offset.w, height = offset.h }
+        ClientDims imgSize pnlSize ->
+            let
+                log =
+                    Debug.log "ClientDims" [imgSize, pnlSize]
+                ratioW =
+                    (toFloat pnlSize.w) / (toFloat imgSize.w)
+                ratioH =
+                    (toFloat pnlSize.h) / (toFloat imgSize.h)
+                scale =
+                    List.minimum [ratioW, ratioH] |> Maybe.withDefault 1.0
+                log2 =
+                    Debug.log "scale" scale
+            in
+            ( { model | imageSize = imgSize , panelSize = pnlSize , scale = scale }
             , render <| graphics model
             )
         WindowResized offset ->
@@ -87,9 +99,13 @@ update msg model =
         AddPoint mouse ->
             let
                 x =
-                    mouse.clientPos.x - mouse.targetPos.x
+                    toFloat (mouse.clientPos.x - mouse.targetPos.x)
+                        --/ model.scale
+                        |> round
                 y =
-                    mouse.clientPos.y - mouse.targetPos.y
+                    toFloat (mouse.clientPos.y - mouse.targetPos.y)
+                        --/ model.scale
+                        |> round
                 p =
                     Point x y
                 updated =

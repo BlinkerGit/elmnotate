@@ -45,8 +45,9 @@ type alias Model =
     { pending: List Image
     , processed: List Image
     , pendingGeom: PendingGeometry
-    , width: Int
-    , height: Int
+    , imageSize: Offset
+    , panelSize: Offset
+    , scale: Float
     , dropZone: DropZone.Model
     }
 
@@ -56,8 +57,9 @@ init =
         []
         []
         NoShape
-        2000
-        2000
+        (Offset 2000 2000)
+        (Offset 2000 2000)
+        1.0
         DropZone.init
 
 graphics : Model -> Graphics

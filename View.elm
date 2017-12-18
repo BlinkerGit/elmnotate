@@ -152,6 +152,10 @@ drawing model =
                 |> Maybe.withDefault (Image "https://placekitten.com/g/720/540" [])
         url =
             "url(" ++ img.url ++ ")"
+        w =
+            (toFloat model.imageSize.w) * model.scale |> round
+        h =
+            (toFloat model.imageSize.h) * model.scale |> round
     in
     canvas [ style
                [ ( "background-image",   url )
@@ -160,8 +164,8 @@ drawing model =
                ]
            , ME.onClick AddPoint
            , id "annotate-canvas"
-           , width model.width
-           , height model.height
+           , width w
+           , height h
            ]
            []
 
