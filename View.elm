@@ -5,7 +5,6 @@ import FileReader exposing (NativeFile)
 import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input)
 import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height)
 import Html.Events exposing (onClick)
-import MouseEvents as ME
 import Http exposing (encodeUri)
 import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..))
 import Update exposing (Msg(..))
@@ -162,7 +161,6 @@ drawing model =
                , ( "background-size",   "contain" )
                , ( "background-repeat", "no-repeat" )
                ]
-           , ME.onClick AddPoint
            , id "annotate-canvas"
            , width w
            , height h

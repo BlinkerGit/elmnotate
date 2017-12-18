@@ -2,7 +2,6 @@ module Update exposing (..)
 
 import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
-import MouseEvents
 import Task
 import Model exposing (Model, Image, Point, Offset, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..))
 import Canvas exposing (render, loadImage)
@@ -18,7 +17,6 @@ type Msg
     | MouseUp Point
     | NewShape PendingGeometry
     | DeleteShape Int
-    | AddPoint MouseEvents.MouseEvent
     | ConvertRect Int
     | NavPrev
     | NavNext
@@ -63,7 +61,7 @@ update msg model =
                 updated = { model | imageSize = imgSize , panelSize = pnlSize , scale = scale }
             in
             ( updated
-            , render <| graphics model
+            , render <| graphics updated
             )
         WindowResized offset ->
             let
@@ -79,7 +77,7 @@ update msg model =
                 updated = { model | panelSize = pnlSize , scale = scale }
             in
             ( updated
-            , render <| graphics model
+            , render <| graphics updated
             )
         MouseMoved pt ->
             let
@@ -116,8 +114,6 @@ update msg model =
                 hover_ =
                     List.head indexedPoints
                         |> Maybe.andThen (\(gi,pi,_) -> Just (FocusPoint gi pi))
-                log =
-                    Debug.log "indexedShapes" indexedPoints
                 pending =
                     case model.pending of
                         [] -> []
@@ -131,9 +127,24 @@ update msg model =
             ( { model | dragPoint = model.hoverPoint }
             , render <| graphics model
             )
-        MouseUp point ->
-            ( { model | dragPoint = Nothing }
-            , render <| graphics model
+        MouseUp pt ->
+            let
+                canvasPoint =
+                    -- subtract header height
+                    Point pt.x (pt.y - 50)
+                point =
+                    unscalePoint model.scale canvasPoint
+                updated =
+                    if inCanvas canvasPoint model.panelSize then
+                        case model.dragPoint of
+                            Nothing -> addPoint model point
+                            Just p -> { model | dragPoint = Nothing }
+                    else
+                        model
+
+            in
+            ( updated
+            , render <| graphics updated
             )
         NewShape s ->
             ( { model | pendingGeom = s }
@@ -160,22 +171,6 @@ update msg model =
             ( updated
             , render <| graphics updated
             )
-        AddPoint mouse ->
-            let
-                x =
-                    toFloat (mouse.clientPos.x - mouse.targetPos.x)
-                        / model.scale
-                        |> round
-                y =
-                    toFloat (mouse.clientPos.y - mouse.targetPos.y)
-                        / model.scale
-                        |> round
-                p =
-                    Point x y
-                updated =
-                    addPoint model p
-            in
-            (updated, render <| graphics updated)
         ConvertRect index ->
             let
                 img_ =
@@ -248,6 +243,10 @@ update msg model =
             , cmd
             )
 
+inCanvas : Point -> Offset -> Bool
+inCanvas p o =
+    p.x >= 0 && p.y >= 0 && p.x <= o.w && p.y <= o.h
+
 moveDraggingPoint : Maybe FocusPoint -> Point -> Image -> Image
 moveDraggingPoint drag point image =
     case drag of
@@ -261,7 +260,14 @@ moveDraggingPoint drag point image =
                                 case shape.geom of
                                     Rect p o ->
                                         case pointIdx of
-                                            0 -> Rect point o
+                                            0 ->
+                                                let
+                                                    delta =
+                                                        Offset (point.x - p.x) (point.y - p.y)
+                                                    offset =
+                                                        Offset (o.w - delta.w) (o.h - delta.h)
+                                                in
+                                                Rect point offset
                                             1 -> Rect p (Offset (point.x - p.x) (point.y - p.y))
                                             _ -> shape.geom
                                     Quad tl tr br bl ->
