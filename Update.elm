@@ -12,6 +12,7 @@ type Msg
     | DnD (DropZoneMessage (List NativeFile))
     | OnFileContent (Result FileReader.Error String)
     | ImageSize Offset
+    | WindowResized Offset
     | NewShape PendingGeometry
     | DeleteShape Int
     | AddPoint MouseEvents.MouseEvent
@@ -52,6 +53,12 @@ update msg model =
             ( { model | width = offset.w, height = offset.h }
             , render <| graphics model
             )
+        WindowResized offset ->
+            let
+                log =
+                    Debug.log "Window Resized" offset
+            in
+            (model, Cmd.none)
         NewShape s ->
             ( { model | pendingGeom = s }
             , render <| graphics model

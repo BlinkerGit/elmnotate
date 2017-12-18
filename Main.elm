@@ -2,9 +2,9 @@ module Main exposing (..)
 
 import Array
 import Html exposing (program)
-import DropZone
 import Json.Encode exposing (Value)
 import Json.Decode exposing (decodeValue, decodeString, array, int)
+import Window
 import Model exposing (Model, Offset)
 import View exposing (view)
 import Update exposing (Msg(..), update)
@@ -16,7 +16,11 @@ init =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    imageSize (decodeImageSize)
+    -- todo: add mouse clicks, downs, ups, and moves (if dragging)
+    Sub.batch
+        [ imageSize (decodeImageSize)
+        , Window.resizes (\{height, width} -> WindowResized (Offset width height))
+        ]
 
 decodeImageSize : Value -> Msg
 decodeImageSize value =
