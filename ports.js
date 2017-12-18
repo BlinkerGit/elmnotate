@@ -24,14 +24,13 @@ annotate.ports.loadImage.subscribe(function(url) {
     clearCanvas();
     getImageSize(url, function(imgW, imgH) {
         let updateDims = function() {
-            let canvasWrapper = document.getElementById('canvas-wrapper');
-            if (canvasWrapper) {
+            let canvasPanel = document.getElementById('canvas-panel');
+            if (canvasPanel) {
                 let panelSize = {
-                    width: canvasWrapper.offsetWidth,
-                    height: canvasWrapper.offsetHeight,
+                    width: canvasPanel.offsetWidth,
+                    height: canvasPanel.offsetHeight,
                 };
 
-                console.log("updating clientDims port...");
                 annotate.ports.clientDims.send([
                     imgW,
                     imgH,
@@ -39,7 +38,6 @@ annotate.ports.loadImage.subscribe(function(url) {
                     panelSize.height
                 ]);
             } else {
-                console.log("canvas wrapper not found, polling...");
                 window.setTimeout(updateDims, 10);
             }
         };
