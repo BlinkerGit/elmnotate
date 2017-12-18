@@ -2,7 +2,7 @@ module View exposing (view)
 
 import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
 import FileReader exposing (NativeFile)
-import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tr, td, input)
+import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input)
 import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height)
 import Html.Events exposing (onClick)
 import MouseEvents as ME
@@ -14,10 +14,13 @@ import Serialization
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ header model
-        , body model
-        , footer model
+    div [ class "full-screen" ]
+        [ div [ id "header" ]
+              [ header model ]
+        , div [ id "main" ]
+              ( body model )
+        , div [ id "footer" ]
+              [ footer model ]
         ]
 
 
@@ -37,7 +40,7 @@ header model =
                 (_, _) ->
                     ((toString (done + 1)) ++ " of " ++ (toString total))
     in
-    nav [ class "navbar fixed-top navbar-light bg-light justify-content-between" ]
+    nav [ class "navbar navbar-light bg-light justify-content-between" ]
         [ span [ class "navbar-brand" ]
                [ text "Annotate"]
         , maybeShapeButtons (todo > 0) model.pendingGeom
@@ -73,13 +76,8 @@ maybeShapeButtons flag pend =
     else
         Html.text ""
 
-body : Model -> Html Msg
+body : Model -> List (Html Msg)
 body model =
-    div [ class "body-content" ]
-        [ bodyContent model ]
-
-bodyContent : Model -> Html Msg
-bodyContent model =
     let
         todo =
             List.length model.pending
@@ -88,15 +86,17 @@ bodyContent model =
     in
     case (todo, done) of
         (0, 0) ->
-            getStarted model
+            [getStarted model]
         (0, _) ->
-            complete model
+            [complete model]
         (_, _) ->
             inProcess model
 
 getStarted : Model -> Html Msg
 getStarted model =
-    div [ class "center-pad" ]
+    div [ id "get-started"
+        , class "center-pad"
+        ]
         [ Html.map DnD
             (div (dzAttributes model.dropZone)
                 [ text "to get started, drop a .txt file of URLs, one per line, here"
@@ -130,19 +130,19 @@ dropZoneDefault =
 
 complete : Model -> Html Msg
 complete model =
-    div [ class "center-pad" ]
+    div [ id "complete"
+        , class "center-pad"
+        ]
         [ text "all done!  download your data below:"
         ]
 
-inProcess : Model -> Html Msg
+inProcess : Model -> List (Html Msg)
 inProcess model =
-    div [ class "row" ]
-        [ div [ class "col-8 drawing-panel" ]
-              [ drawing model
-              ]
-        , div [ class "col-4 shape-list-panel" ]
-              [ shapeList model ]
-        ]
+    [ div [ id "canvas-panel" ]
+          [ drawing model ]
+    , div [ id "sidebar" ]
+          [ shapeList model ]
+    ]
 
 drawing : Model -> Html Msg
 drawing model =
@@ -175,7 +175,9 @@ shapeList model =
     div []
         [ h6 [] [ text "Shapes"]
         , table [ class "table table-sm table-bordered table-striped" ]
-                (List.indexedMap shapeRow img.shapes)
+                [ tbody []
+                        (List.indexedMap shapeRow img.shapes)
+                ]
         ]
 
 shapeRow : Int -> Shape -> Html Msg

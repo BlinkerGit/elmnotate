@@ -3,24 +3,57 @@
     <title>Annotate</title>
     <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
     <style>
-      canvas {
-        max-width: 66vw;
-        max-height: calc(100vh - 120px);
+      html,
+      body,
+      .full-screen {
+        height: 100%;
       }
-      .body-content {
-        margin-top: 60px;
-        margin-bottom: 60px;
-        max-height: calc(100vh - 120px);
+      body {
+        margin: 0;
+      }
+      .full-screen {
+        display: flex;
+        overflow: hidden;
+        flex-direction: column;
+      }
+      .full-screen > * {
+        flex: 0 0 auto;
+        overflow: hidden;
+      }
+      .full-screen > #header,
+      .full-screen > #footer {
+        height: 50px;
+      }
+      .full-screen > #main {
+        flex: 1 1 auto;
+        display: flex;
+        overflow: hidden;
+      }
+      .full-screen > #main > * {
+        flex: 0 0 auto;
+        overflow: hidden;
+      }
+      .full-screen > #main #sidebar {
+        width: 300px;
+        background: #eee;
+        overflow-y: auto;
+      }
+      .full-screen > #main #canvas-panel {
+        flex: 1 1 auto;
+        background-image: linear-gradient(45deg, #dddddd 25%, transparent 25%),
+                          linear-gradient(-45deg, #dddddd 25%, transparent 25%),
+                          linear-gradient(45deg, transparent 75%, #dddddd 75%),
+                          linear-gradient(-45deg, transparent 75%, #dddddd 75%);
+        background-size: 20px 20px;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      }
+      .full-screen > #main > #get-started,
+      .full-screen > #main > #complete {
+        flex: 1 1 auto;
       }
       .center-pad {
         padding: 20vh;
         text-align: center;
-      }
-      .drawing-panel {
-        background-image: linear-gradient(45deg, #dddddd 25%, transparent 25%), linear-gradient(-45deg, #dddddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #dddddd 75%), linear-gradient(-45deg, transparent 75%, #dddddd 75%);
-        background-size: 20px 20px;
-        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-        height: 100vh;
       }
     </style>
   </head>
