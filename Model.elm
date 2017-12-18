@@ -15,6 +15,7 @@ type alias Line =
 type alias Graphics =
     { points: List Point
     , lines: List Line
+    , anchors: List Point
     }
 
 type alias Offset =
@@ -79,13 +80,17 @@ graphics m =
             List.map .geom current.shapes
                 |> List.map toLines
                 |> List.concat
+        anchors =
+            List.map .geom current.shapes
+                |> List.map toAnchors
+                |> List.concat
         points =
             case m.pendingGeom of
                 NoShape -> []
                 PendingRect l -> l
                 PendingQuad l -> l
     in
-    Graphics (scalePoints m.scale points) (scaleLines m.scale lines)
+    Graphics (scalePoints m.scale points) (scaleLines m.scale lines) (scalePoints m.scale anchors)
 
 unscalePoint : Float -> Point -> Point
 unscalePoint s p =
@@ -122,6 +127,16 @@ toLines g =
             rectLines p o
         Quad p1 p2 p3 p4 ->
             quadLines p1 p2 p3 p4
+
+toAnchors : Geometry -> List Point
+toAnchors g =
+    case g of
+        Rect p o ->
+            [ p
+            , Point (p.x + o.w) (p.y + o.h)
+            ]
+        Quad p1 p2 p3 p4 ->
+            [p1, p2, p3, p4]
 
 rectLines : Point -> Offset -> List Line
 rectLines p o =

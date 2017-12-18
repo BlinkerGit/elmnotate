@@ -17,6 +17,9 @@ annotate.ports.render.subscribe(function(graphics) {
     graphics.lines.forEach(line => {
         drawLine(line.start, line.end);
     });
+    graphics.anchors.forEach(point => {
+        drawAnchor(point.x, point.y);
+    });
 });
 
 // discover the image size and report back to elm
@@ -82,6 +85,20 @@ function drawPoint(x, y) {
         ctx.strokeStyle = 'green';
         //ctx.closePath();
         ctx.stroke();
+    }
+}
+
+function drawAnchor(x, y) {
+    const canvas = document.getElementById("annotate-canvas");
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(x-1, y-1, 2, 0, tau, false);
+        ctx.strokeStyle = 'red';
+        ctx.fillStyle = 'white';
+        //ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
     }
 }
 
