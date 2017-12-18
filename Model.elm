@@ -31,6 +31,9 @@ type PendingGeometry
     | PendingRect (List Point)
     | PendingQuad (List Point)
 
+-- index of geom in shape, point in geom for hover/drag
+type FocusPoint = FocusPoint Int Int
+
 type alias Shape =
     { label: String
     , geom: Geometry
@@ -45,6 +48,8 @@ type alias Model =
     { pending: List Image
     , processed: List Image
     , pendingGeom: PendingGeometry
+    , dragPoint: Maybe FocusPoint
+    , hoverPoint: Maybe FocusPoint
     , imageSize: Offset
     , panelSize: Offset
     , scale: Float
@@ -57,6 +62,8 @@ init =
         []
         []
         NoShape
+        Nothing
+        Nothing
         (Offset 2000 2000)
         (Offset 2000 2000)
         1.0
@@ -79,6 +86,14 @@ graphics m =
                 PendingQuad l -> l
     in
     Graphics (scalePoints m.scale points) (scaleLines m.scale lines)
+
+unscalePoint : Float -> Point -> Point
+unscalePoint s p =
+    let
+        unscaled i =
+            (round ((toFloat i) / s))
+    in
+    Point (unscaled p.x) (unscaled p.y)
 
 scalePoint : Float -> Point -> Point
 scalePoint s p =

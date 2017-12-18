@@ -2,10 +2,12 @@ module Main exposing (..)
 
 import Array
 import Html exposing (program)
-import Json.Encode exposing (Value)
 import Json.Decode exposing (decodeValue, decodeString, array, int)
+import Json.Encode exposing (Value)
+import Mouse
 import Window
-import Model exposing (Model, Offset)
+
+import Model exposing (Model, Point, Offset)
 import View exposing (view)
 import Update exposing (Msg(..), update)
 import Canvas exposing (clientDims)
@@ -20,6 +22,9 @@ subscriptions model =
     Sub.batch
         [ clientDims (decodeClientDims)
         , Window.resizes (\{height, width} -> WindowResized (Offset width height))
+        , Mouse.moves (\{x, y} -> MouseMoved (Point x y))
+        , Mouse.downs (\{x, y} -> MouseDown (Point x y))
+        , Mouse.ups (\{x, y} -> MouseUp (Point x y))
         ]
 
 decodeClientDims : Value -> Msg
