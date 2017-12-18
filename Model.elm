@@ -78,7 +78,27 @@ graphics m =
                 PendingRect l -> l
                 PendingQuad l -> l
     in
-    Graphics points lines
+    Graphics (scalePoints m.scale points) (scaleLines m.scale lines)
+
+scalePoint : Float -> Point -> Point
+scalePoint s p =
+    let
+        scaled i =
+            (round ((toFloat i) * s))
+    in
+    Point (scaled p.x) (scaled p.y)
+
+scalePoints : Float -> List Point -> List Point
+scalePoints s points =
+    List.map (scalePoint s) points
+
+scaleLines : Float -> List Line -> List Line
+scaleLines s lines =
+    let
+        scaleLine {start, end} =
+            Line (scalePoint s start) (scalePoint s end)
+    in
+    List.map scaleLine lines
 
 toLines : Geometry -> List Line
 toLines g =

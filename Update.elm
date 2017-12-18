@@ -61,16 +61,30 @@ update msg model =
                     List.minimum [ratioW, ratioH] |> Maybe.withDefault 1.0
                 log2 =
                     Debug.log "scale" scale
+                updated = { model | imageSize = imgSize , panelSize = pnlSize , scale = scale }
             in
-            ( { model | imageSize = imgSize , panelSize = pnlSize , scale = scale }
+            ( updated
             , render <| graphics model
             )
         WindowResized offset ->
             let
                 log =
-                    Debug.log "Window Resized" offset
+                    Debug.log "Window resized" offset
+                pnlSize =
+                    Offset (offset.w - 300) (offset.h - 100)
+                ratioW =
+                    (toFloat pnlSize.w) / (toFloat model.imageSize.w)
+                ratioH =
+                    (toFloat pnlSize.h) / (toFloat model.imageSize.h)
+                scale =
+                    List.minimum [ratioW, ratioH] |> Maybe.withDefault 1.0
+                log2 =
+                    Debug.log "scale" scale
+                updated = { model | panelSize = pnlSize , scale = scale }
             in
-            (model, Cmd.none)
+            ( updated
+            , render <| graphics model
+            )
         NewShape s ->
             ( { model | pendingGeom = s }
             , render <| graphics model
@@ -100,11 +114,11 @@ update msg model =
             let
                 x =
                     toFloat (mouse.clientPos.x - mouse.targetPos.x)
-                        --/ model.scale
+                        / model.scale
                         |> round
                 y =
                     toFloat (mouse.clientPos.y - mouse.targetPos.y)
-                        --/ model.scale
+                        / model.scale
                         |> round
                 p =
                     Point x y
