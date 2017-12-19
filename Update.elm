@@ -1,5 +1,6 @@
 module Update exposing (..)
 
+import Dict
 import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
 import MimeType
@@ -64,8 +65,23 @@ update msg model =
                     case fromJson content of
                         Ok p_ -> p_
                         Err _ -> []
+                toLabel shape =
+                    let
+                        pg =
+                            case shape.geom of
+                                Rect _ _     -> PendingRect []
+                                Quad _ _ _ _ -> PendingQuad []
+                    in
+                    (shape.label, pg)
+                labels =
+                    List.concatMap .shapes pending
+                        |> List.map toLabel
+                        -- unique labels only
+                        |> Dict.fromList
+                        |> Dict.toList
+                        |> List.map (\(l,g) -> LabelClass l g False)
             in
-            ( { model | pending = pending }
+            ( { model | pending = pending, labelClasses = labels }
             , (loadImageCmd pending)
             )
         OnJsonContent (Err error) ->
