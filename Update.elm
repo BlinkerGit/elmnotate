@@ -18,7 +18,6 @@ type Msg
     | MouseMoved Point
     | MouseDown Point
     | MouseUp Point
-    | NewShape PendingGeometry
     | DeleteShape Int
     | DeleteClass Int
     | ConvertRect Int
@@ -165,10 +164,6 @@ update msg model =
             in
             ( updated
             , render <| graphics updated
-            )
-        NewShape s ->
-            ( { model | pendingGeom = s }
-            , render <| graphics model
             )
         DeleteShape index ->
             let
@@ -402,6 +397,10 @@ addPoint m p =
                     PendingRect []
                 PendingQuad points ->
                     PendingQuad []
+        label =
+            case List.filter .active m.labelClasses of
+                [] -> ""
+                x :: xs -> x.label
         g =
             completedShape pg
         current =
@@ -410,7 +409,7 @@ addPoint m p =
         current_ =
             case g of
                 Nothing -> current
-                Just s -> { current | shapes = (Shape "" s) :: current.shapes }
+                Just s -> { current | shapes = (Shape label s) :: current.shapes }
         newPending =
             current_ :: (List.drop 1 m.pending)
         updated =

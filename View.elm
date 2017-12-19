@@ -42,38 +42,9 @@ header model =
     nav [ class "navbar navbar-light bg-light justify-content-between" ]
         [ span [ class "navbar-brand" ]
                [ text "Annotate"]
-        , maybeShapeButtons (todo > 0) model.pendingGeom
         , span []
                [ text msg ]
         ]
-
-maybeShapeButtons : Bool -> PendingGeometry -> Html Msg
-maybeShapeButtons flag pend =
-    if flag then
-        let
-            baseClass =
-                "btn btn-sm mr-1 "
-            rectClass =
-                case pend of
-                    PendingRect _ -> baseClass ++ "btn-primary"
-                    _ -> baseClass ++ "btn-outline-primary"
-            quadClass =
-                case pend of
-                    PendingQuad _ -> baseClass ++ "btn-primary"
-                    _ -> baseClass ++ "btn-outline-primary"
-        in
-        div  []
-             [ button [ class rectClass
-                      , onClick <| NewShape (PendingRect [])
-                      ]
-                      [ text "R" ]
-             , button [ class quadClass
-                      , onClick <| NewShape (PendingQuad [])
-                      ]
-                      [ text "Q" ]
-             ]
-    else
-        Html.text ""
 
 body : Model -> List (Html Msg)
 body model =
@@ -176,20 +147,18 @@ drawing model =
 
 sidebar : Model -> Html Msg
 sidebar model =
-    let
-        img =
-            List.head model.pending
-                |> Maybe.withDefault (Image "" [])
-    in
     div []
         [ h6 [] [ text "Classes"]
         , classList model
         , hr [] []
         , h6 [] [ text "Shapes"]
+        , shapeList model
+        {-
         , table [ class "table table-sm table-bordered table-striped" ]
                 [ tbody []
                         (List.indexedMap shapeRow img.shapes)
                 ]
+        -}
         ]
 
 pGeomLabel : PendingGeometry -> String
@@ -198,6 +167,12 @@ pGeomLabel pg =
         NoShape       -> "Shape"
         PendingRect _ -> "Rect"
         PendingQuad _ -> "Quad"
+
+geomLabel : Geometry -> String
+geomLabel g =
+    case g of
+        Rect _ _     -> "Rect"
+        Quad _ _ _ _ -> "Quad"
 
 classList : Model -> Html Msg
 classList model =
@@ -266,29 +241,42 @@ classListItem index lc =
                 [ text "Delete" ]
        ]
 
-shapeRow : Int -> Shape -> Html Msg
-shapeRow index s =
+shapeList : Model -> Html Msg
+shapeList model =
     let
-        geomType s =
-            case s of
-                Rect _ _-> "rect"
-                Quad _ _ _ _ -> "quad"
+        img =
+            List.head model.pending
+                |> Maybe.withDefault (Image "" [])
     in
-    tr []
-       [ td []
-            [ text <| geomType s.geom
-            , maybeConvertButton s.geom index
-            ]
-       , td []
-            [ input [ class "form-control" ]
-                    []
-            ]
-       , td []
-            [ button [ class "btn btn-danger btn-sm"
-                     , onClick <| DeleteShape index
-                     ]
-                     [ text "Delete" ]
-            ]
+    ul [ class "list-group" ]
+       (List.indexedMap shapeListItem img.shapes)
+
+shapeListItem : Int -> Shape -> Html Msg
+shapeListItem index s =
+    {-
+    let
+        buttonClass =
+            if lc.active then
+                "btn btn-fw btn-xs btn-primary mr-2"
+            else
+                "btn btn-fw btn-xs btn-outline-primary mr-2"
+    in
+    -}
+    li [ class "list-group-item form-inline" ]
+       [ button [ class "btn btn-fw btn-xs btn-outline-primary mr-2"
+                --, onClick (ActivateLabel index)
+                ]
+                [ text (geomLabel s.geom) ]
+       , input [ class "form-control form-control-xs mr-2"
+               , placeholder "label"
+               , disabled True
+               , value s.label
+               ]
+               []
+       , button [ class "btn btn-danger btn-xs"
+                , onClick <| DeleteShape index
+                ]
+                [ text "Delete" ]
        ]
 
 maybeConvertButton : Geometry -> Int -> Html Msg
