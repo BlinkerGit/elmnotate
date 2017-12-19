@@ -69,7 +69,7 @@ getStarted model =
         ]
         [ Html.map DnD
             (div (dzAttributes model.dropZone)
-                [ text "to get started, drop a .txt file of URLs, one per line, here"
+                [ text "To get started, drop a data file here.  Accepted formats are .txt (one URL per line) and .json (with the same structure as the output)."
                 ]
             )
         ]
