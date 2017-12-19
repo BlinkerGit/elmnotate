@@ -27,6 +27,7 @@ type Msg
     | SelectRect
     | SetLabel String
     | AddLabelClass
+    | ActivateLabel Int
     | NavPrev
     | NavNext
 
@@ -234,7 +235,7 @@ update msg model =
                 p_ =
                     model.pendingClass
                 p =
-                    { p_ | selectOpen = not p_.selectOpen }
+                    { p_ | active = not p_.active }
             in
             ( { model | pendingClass = p }, Cmd.none )
         SelectQuad ->
@@ -242,7 +243,7 @@ update msg model =
                 p_ =
                     model.pendingClass
                 p =
-                    { p_ | selectOpen = False, geom = (PendingQuad []) }
+                    { p_ | active = False, geom = (PendingQuad []) }
             in
             ( { model | pendingClass = p }, Cmd.none )
         SelectRect ->
@@ -250,7 +251,7 @@ update msg model =
                 p_ =
                     model.pendingClass
                 p =
-                    { p_ | selectOpen = False, geom = (PendingRect []) }
+                    { p_ | active = False, geom = (PendingRect []) }
             in
             ( { model | pendingClass = p }, Cmd.none )
         SetLabel l ->
@@ -269,6 +270,18 @@ update msg model =
                     LabelClass "" NoShape False
             in
             ( { model | labelClasses = c, pendingClass = p }, Cmd.none )
+        ActivateLabel i ->
+            let
+                setActive ai lc =
+                    { lc | active = ai == i }
+                c =
+                    List.indexedMap setActive model.labelClasses
+                pg =
+                    case List.filter .active c of
+                        [] -> NoShape
+                        x :: xs -> x.geom
+            in
+            ( { model | labelClasses = c, pendingGeom = pg }, Cmd.none )
         NavPrev ->
             let
                 nextPending =

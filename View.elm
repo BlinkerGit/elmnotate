@@ -203,16 +203,16 @@ classList : Model -> Html Msg
 classList model =
     let
         menuClass =
-            if model.pendingClass.selectOpen then
+            if model.pendingClass.active then
                 "dropdown-menu show"
             else
                 "dropdown-menu"
     in
     ul [ class "list-group" ]
        ( (List.indexedMap classListItem model.labelClasses)
-       ++ [ li [ class "list-group-item form-inline" ]
+       ++ [ li [ class "list-group-item pending-label form-inline" ]
                [ div [ class "btn-group btn-group-xs mr-2" ]
-                     [ button [ class "btn btn-outline-primary dropdown-toggle"
+                     [ button [ class "btn btn-fw btn-outline-primary dropdown-toggle"
                               , onClick ToggleGeomMenu ]
                               [ text (pGeomLabel model.pendingClass.geom) ]
                      , div [ class menuClass ]
@@ -242,9 +242,16 @@ classList model =
 
 classListItem : Int -> LabelClass -> Html Msg
 classListItem index lc =
+    let
+        buttonClass =
+            if lc.active then
+                "btn btn-fw btn-xs btn-primary mr-2"
+            else
+                "btn btn-fw btn-xs btn-outline-primary mr-2"
+    in
     li [ class "list-group-item form-inline" ]
-       [ button [ class "btn btn-xs btn-outline-primary mr-2"
-                , disabled True
+       [ button [ class buttonClass
+                , onClick (ActivateLabel index)
                 ]
                 [ text (pGeomLabel lc.geom) ]
        , input [ class "form-control form-control-xs mr-2"

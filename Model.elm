@@ -43,8 +43,15 @@ type alias Shape =
 type alias LabelClass =
     { label: String
     , geom: PendingGeometry
-    , selectOpen: Bool
+    , active: Bool
     }
+
+initLabelClass : LabelClass
+initLabelClass =
+    LabelClass
+        ""
+        NoShape
+        False
 
 type alias Image =
     { url: String
@@ -72,7 +79,7 @@ init =
         []
         NoShape
         []
-        (LabelClass "" NoShape False)
+        initLabelClass
         Nothing
         Nothing
         (Offset 2000 2000)
