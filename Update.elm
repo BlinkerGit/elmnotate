@@ -2,14 +2,17 @@ module Update exposing (..)
 
 import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
+import MimeType
 import Task
 import Model exposing (Model, Image, Point, Offset, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..))
 import Canvas exposing (render, loadImage)
+import Serialization exposing (fromJson)
 
 type Msg
     = NoOp
     | DnD (DropZoneMessage (List NativeFile))
-    | OnFileContent (Result FileReader.Error String)
+    | OnTextContent (Result FileReader.Error String)
+    | OnJsonContent (Result FileReader.Error String)
     | ClientDims Offset Offset
     | WindowResized Offset
     | MouseMoved Point
@@ -32,7 +35,7 @@ update msg model =
             )
         DnD msg ->
             (model, Cmd.none)
-        OnFileContent (Ok content) ->
+        OnTextContent (Ok content) ->
             let
                 urls =
                     String.trim content
@@ -42,13 +45,23 @@ update msg model =
                 pending =
                     new_images ++ model.pending
                 -- TODO dedupe?
-                cmd =
-                    loadImageCmd pending
             in
             ( { model | pending = pending }
-            , cmd
+            , (loadImageCmd pending)
             )
-        OnFileContent (Err error) ->
+        OnTextContent (Err error) ->
+            (model, Cmd.none)
+        OnJsonContent (Ok content) ->
+            let
+                pending =
+                    case fromJson content of
+                        Ok p_ -> p_
+                        Err _ -> []
+            in
+            ( { model | pending = pending }
+            , (loadImageCmd pending)
+            )
+        OnJsonContent (Err error) ->
             (model, Cmd.none)
         ClientDims imgSize pnlSize ->
             let
@@ -387,5 +400,20 @@ loadImageCmd pending =
 
 uploadHandler : NativeFile -> Cmd Msg
 uploadHandler file =
+    let
+        log =
+            Debug.log "file upload:" file
+        cmd =
+            case file.mimeType of
+                Nothing -> OnTextContent
+                Just t ->
+                    let
+                        log =
+                            Debug.log "mime type" (MimeType.toString t)
+                    in
+                    case MimeType.toString t of
+                        "application/json" -> OnJsonContent
+                        _ -> OnTextContent
+    in
     FileReader.readAsTextFile file.blob
-        |> Task.attempt OnFileContent
+        |> Task.attempt cmd
