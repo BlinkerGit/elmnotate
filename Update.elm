@@ -4,7 +4,7 @@ import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
 import MimeType
 import Task
-import Model exposing (Model, Image, Point, Offset, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..))
+import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..))
 import Canvas exposing (render, loadImage)
 import Serialization exposing (fromJson)
 
@@ -20,7 +20,13 @@ type Msg
     | MouseUp Point
     | NewShape PendingGeometry
     | DeleteShape Int
+    | DeleteClass Int
     | ConvertRect Int
+    | ToggleGeomMenu
+    | SelectQuad
+    | SelectRect
+    | SetLabel String
+    | AddLabelClass
     | NavPrev
     | NavNext
 
@@ -184,6 +190,20 @@ update msg model =
             ( updated
             , render <| graphics updated
             )
+        DeleteClass index ->
+            let
+                h =
+                    List.take index model.labelClasses
+                t =
+                    List.drop (index + 1) model.labelClasses
+                lc =
+                    h ++ t
+                updated =
+                    { model | labelClasses = lc }
+            in
+            ( updated
+            , Cmd.none
+            )
         ConvertRect index ->
             let
                 img_ =
@@ -209,6 +229,46 @@ update msg model =
             ( updated
             , Cmd.none
             )
+        ToggleGeomMenu ->
+            let
+                p_ =
+                    model.pendingClass
+                p =
+                    { p_ | selectOpen = not p_.selectOpen }
+            in
+            ( { model | pendingClass = p }, Cmd.none )
+        SelectQuad ->
+            let
+                p_ =
+                    model.pendingClass
+                p =
+                    { p_ | selectOpen = False, geom = (PendingQuad []) }
+            in
+            ( { model | pendingClass = p }, Cmd.none )
+        SelectRect ->
+            let
+                p_ =
+                    model.pendingClass
+                p =
+                    { p_ | selectOpen = False, geom = (PendingRect []) }
+            in
+            ( { model | pendingClass = p }, Cmd.none )
+        SetLabel l ->
+            let
+                p_ =
+                    model.pendingClass
+                p =
+                    { p_ | label = l }
+            in
+            ( { model | pendingClass = p }, Cmd.none )
+        AddLabelClass ->
+            let
+                c =
+                    model.labelClasses ++ [model.pendingClass]
+                p =
+                    LabelClass "" NoShape False
+            in
+            ( { model | labelClasses = c, pendingClass = p }, Cmd.none )
         NavPrev ->
             let
                 nextPending =

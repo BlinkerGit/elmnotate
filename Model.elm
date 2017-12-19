@@ -40,6 +40,12 @@ type alias Shape =
     , geom: Geometry
     }
 
+type alias LabelClass =
+    { label: String
+    , geom: PendingGeometry
+    , selectOpen: Bool
+    }
+
 type alias Image =
     { url: String
     , shapes: List Shape
@@ -49,6 +55,8 @@ type alias Model =
     { pending: List Image
     , processed: List Image
     , pendingGeom: PendingGeometry
+    , labelClasses: List LabelClass
+    , pendingClass: LabelClass
     , dragPoint: Maybe FocusPoint
     , hoverPoint: Maybe FocusPoint
     , imageSize: Offset
@@ -63,6 +71,8 @@ init =
         []
         []
         NoShape
+        []
+        (LabelClass "" NoShape False)
         Nothing
         Nothing
         (Offset 2000 2000)

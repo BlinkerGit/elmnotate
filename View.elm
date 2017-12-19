@@ -2,11 +2,11 @@ module View exposing (view)
 
 import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
 import FileReader exposing (NativeFile)
-import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input)
-import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height)
-import Html.Events exposing (onClick)
+import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input, hr, ul, li)
+import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height, value, placeholder)
+import Html.Events exposing (onClick, onInput)
 import Http exposing (encodeUri)
-import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..))
+import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass)
 import Update exposing (Msg(..))
 import Serialization
 
@@ -140,7 +140,7 @@ inProcess model =
     [ div [ id "canvas-panel" ]
           [ drawing model ]
     , div [ id "sidebar" ]
-          [ shapeList model ]
+          [ sidebar model ]
     ]
 
 drawing : Model -> Html Msg
@@ -174,20 +174,90 @@ drawing model =
            ]
            []
 
-shapeList : Model -> Html Msg
-shapeList model =
+sidebar : Model -> Html Msg
+sidebar model =
     let
         img =
             List.head model.pending
                 |> Maybe.withDefault (Image "" [])
     in
     div []
-        [ h6 [] [ text "Shapes"]
+        [ h6 [] [ text "Classes"]
+        , classList model
+        , hr [] []
+        , h6 [] [ text "Shapes"]
         , table [ class "table table-sm table-bordered table-striped" ]
                 [ tbody []
                         (List.indexedMap shapeRow img.shapes)
                 ]
         ]
+
+pGeomLabel : PendingGeometry -> String
+pGeomLabel pg =
+    case pg of
+        NoShape       -> "Shape"
+        PendingRect _ -> "Rect"
+        PendingQuad _ -> "Quad"
+
+classList : Model -> Html Msg
+classList model =
+    let
+        menuClass =
+            if model.pendingClass.selectOpen then
+                "dropdown-menu show"
+            else
+                "dropdown-menu"
+    in
+    ul [ class "list-group" ]
+       ( (List.indexedMap classListItem model.labelClasses)
+       ++ [ li [ class "list-group-item form-inline" ]
+               [ div [ class "btn-group btn-group-xs mr-2" ]
+                     [ button [ class "btn btn-outline-primary dropdown-toggle"
+                              , onClick ToggleGeomMenu ]
+                              [ text (pGeomLabel model.pendingClass.geom) ]
+                     , div [ class menuClass ]
+                           [ a [ class "dropdown-item"
+                               , onClick SelectQuad
+                               ]
+                               [ text "Quad" ]
+                           , a [ class "dropdown-item"
+                               , onClick SelectRect
+                               ]
+                               [ text "Rect" ]
+                           ]
+                     ]
+                , input [ class "form-control form-control-xs mr-2"
+                        , value model.pendingClass.label
+                        , onInput SetLabel
+                        , placeholder "label"
+                        ]
+                        []
+                , button [ class "btn btn-primary btn-xs"
+                         , onClick AddLabelClass
+                         ]
+                         [ text "Save" ]
+               ]
+       ]
+       )
+
+classListItem : Int -> LabelClass -> Html Msg
+classListItem index lc =
+    li [ class "list-group-item form-inline" ]
+       [ button [ class "btn btn-xs btn-outline-primary mr-2"
+                , disabled True
+                ]
+                [ text (pGeomLabel lc.geom) ]
+       , input [ class "form-control form-control-xs mr-2"
+               , placeholder "label"
+               , disabled True
+               , value lc.label
+               ]
+               []
+       , button [ class "btn btn-danger btn-xs"
+                , onClick <| DeleteClass index
+                ]
+                [ text "Delete" ]
+       ]
 
 shapeRow : Int -> Shape -> Html Msg
 shapeRow index s =
