@@ -16,6 +16,7 @@ type alias Graphics =
     { points: List Point
     , lines: List Line
     , anchors: List Point
+    , highlight: List Line
     }
 
 type alias Offset =
@@ -38,6 +39,7 @@ type FocusPoint = FocusPoint Int Int
 type alias Shape =
     { label: String
     , geom: Geometry
+    , active: Bool
     }
 
 type alias LabelClass =
@@ -95,19 +97,24 @@ graphics m =
                 |> Maybe.withDefault (Image "" [])
         lines =
             List.map .geom current.shapes
-                |> List.map toLines
-                |> List.concat
+                |> List.concatMap toLines
         anchors =
             List.map .geom current.shapes
-                |> List.map toAnchors
-                |> List.concat
+                |> List.concatMap toAnchors
         points =
             case m.pendingGeom of
                 NoShape -> []
                 PendingRect l -> l
                 PendingQuad l -> l
+        highlight =
+            List.filter .active current.shapes
+                |> List.concatMap (.geom >> toLines)
     in
-    Graphics (scalePoints m.scale points) (scaleLines m.scale lines) (scalePoints m.scale anchors)
+    Graphics
+        (scalePoints m.scale points)
+        (scaleLines m.scale lines)
+        (scalePoints m.scale anchors)
+        (scaleLines m.scale highlight)
 
 unscalePoint : Float -> Point -> Point
 unscalePoint s p =

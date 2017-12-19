@@ -210,7 +210,7 @@ classList model =
                 , button [ class "btn btn-primary btn-xs"
                          , onClick AddLabelClass
                          ]
-                         [ text "Save" ]
+                         [ text "Add" ]
                ]
        ]
        )
@@ -235,7 +235,7 @@ classListItem index lc =
                , value lc.label
                ]
                []
-       , button [ class "btn btn-danger btn-xs"
+       , button [ class "btn btn-outline-danger btn-xs"
                 , onClick <| DeleteClass index
                 ]
                 [ text "Delete" ]
@@ -253,18 +253,16 @@ shapeList model =
 
 shapeListItem : Int -> Shape -> Html Msg
 shapeListItem index s =
-    {-
     let
         buttonClass =
-            if lc.active then
+            if s.active then
                 "btn btn-fw btn-xs btn-primary mr-2"
             else
                 "btn btn-fw btn-xs btn-outline-primary mr-2"
     in
-    -}
     li [ class "list-group-item form-inline" ]
-       [ button [ class "btn btn-fw btn-xs btn-outline-primary mr-2"
-                --, onClick (ActivateLabel index)
+       [ button [ class buttonClass
+                , onClick (ActivateShape index)
                 ]
                 [ text (geomLabel s.geom) ]
        , input [ class "form-control form-control-xs mr-2"
@@ -273,7 +271,7 @@ shapeListItem index s =
                , value s.label
                ]
                []
-       , button [ class "btn btn-danger btn-xs"
+       , button [ class "btn btn-outline-danger btn-xs"
                 , onClick <| DeleteShape index
                 ]
                 [ text "Delete" ]

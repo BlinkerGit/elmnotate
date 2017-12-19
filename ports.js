@@ -11,6 +11,7 @@ let annotate = Elm.Main.embed(container)
 // draw graphics on the canvas
 annotate.ports.render.subscribe(function(graphics) {
     clearCanvas();
+    highlight(graphics.highlight);
     graphics.points.forEach(point => {
         drawPoint(point.x, point.y);
     });
@@ -82,7 +83,7 @@ function drawPoint(x, y) {
         const ctx = canvas.getContext('2d');
         ctx.beginPath();
         ctx.arc(x-1, y-1, 2, 0, tau, false);
-        ctx.strokeStyle = 'green';
+        ctx.strokeStyle = 'rgb(50,205,50)';
         //ctx.closePath();
         ctx.stroke();
     }
@@ -112,5 +113,24 @@ function drawLine(start, end) {
         ctx.strokeStyle = 'red';
         //ctx.closePath();
         ctx.stroke();
+    }
+}
+
+function highlight(lines) {
+    const canvas = document.getElementById("annotate-canvas");
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+
+        lines.forEach(function (line, index) {
+            if (index == 0) {
+                ctx.moveTo(line.start.x, line.start.y);
+            }
+            ctx.lineTo(line.end.x, line.end.y);
+        })
+
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+        ctx.fill();
     }
 }

@@ -27,6 +27,7 @@ type Msg
     | SetLabel String
     | AddLabelClass
     | ActivateLabel Int
+    | ActivateShape Int
     | NavPrev
     | NavNext
 
@@ -210,7 +211,7 @@ update msg model =
                 s_ =
                     List.drop index img_.shapes
                         |> List.head
-                        |> Maybe.withDefault (Shape "" (Rect (Point 0 0) (Offset 0 0)))
+                        |> Maybe.withDefault (Shape "" (Rect (Point 0 0) (Offset 0 0)) False)
                 s =
                     { s_ | geom = toQuad s_.geom }
                 t =
@@ -277,6 +278,28 @@ update msg model =
                         x :: xs -> x.geom
             in
             ( { model | labelClasses = c, pendingGeom = pg }, Cmd.none )
+        ActivateShape i ->
+            let
+                setActive ai s =
+                    let
+                        a =
+                            if s.active then
+                                False
+                            else
+                                ai == i
+                    in
+                    { s | active = a }
+                img =
+                    List.head model.pending
+                        |> Maybe.withDefault (Image "" [])
+                shapes =
+                    List.indexedMap setActive img.shapes
+                p =
+                    case model.pending of
+                        [] -> []
+                        x :: xs -> { x | shapes = shapes } :: xs
+            in
+            ( { model | pending = p }, Cmd.none )
         NavPrev ->
             let
                 nextPending =
@@ -409,7 +432,7 @@ addPoint m p =
         current_ =
             case g of
                 Nothing -> current
-                Just s -> { current | shapes = (Shape label s) :: current.shapes }
+                Just s -> { current | shapes = (Shape label s False) :: current.shapes }
         newPending =
             current_ :: (List.drop 1 m.pending)
         updated =
@@ -473,16 +496,10 @@ loadImageCmd pending =
 uploadHandler : NativeFile -> Cmd Msg
 uploadHandler file =
     let
-        log =
-            Debug.log "file upload:" file
         cmd =
             case file.mimeType of
                 Nothing -> OnTextContent
                 Just t ->
-                    let
-                        log =
-                            Debug.log "mime type" (MimeType.toString t)
-                    in
                     case MimeType.toString t of
                         "application/json" -> OnJsonContent
                         _ -> OnTextContent

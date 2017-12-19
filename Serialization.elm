@@ -59,7 +59,7 @@ decodeImage =
 
 decodeShape : Dec.Decoder Shape
 decodeShape =
-    Dec.map2 Shape
+    Dec.map3 Shape
         (Dec.field "label"  Dec.string)
         (Dec.oneOf
             [ (Dec.field "rect" (Dec.list Dec.int))
@@ -67,6 +67,7 @@ decodeShape =
             , (Dec.field "quad" (Dec.list Dec.int))
                 |> Dec.andThen decodeQuad
             ])
+        (Dec.succeed False)
 
 decodeRect : List Int -> Dec.Decoder Geometry
 decodeRect points =
