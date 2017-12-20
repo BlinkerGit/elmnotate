@@ -155,13 +155,19 @@ update msg model =
                         [] -> []
                         x :: xs ->
                             moveDraggingPoint model.dragPoint point x :: xs
+                updated =
+                    { model | hoverPoint = hover_, pending = pending }
             in
-            ( { model | hoverPoint = hover_, pending = pending }
-            , render <| graphics model
+            ( updated
+            , render <| graphics updated
             )
         MouseDown point ->
-            ( { model | dragPoint = model.hoverPoint }
-            , render <| graphics model
+            let
+                updated =
+                    { model | dragPoint = model.hoverPoint }
+            in
+            ( updated
+            , render <| graphics updated
             )
         MouseUp pt ->
             let

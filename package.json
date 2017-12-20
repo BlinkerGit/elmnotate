@@ -7,7 +7,8 @@
     "elm:make": "elm make Main.elm --output elm.js || true",
     "elm:watch": "chokidar '**/*.elm' -c 'npm run elm:make'",
     "start": "NODE_ENV=${NODE_ENV-development} electron main.js",
-    "watch": "npm run elm:watch & npm run start & wait"
+    "watch": "npm run elm:watch & npm run start & wait",
+    "package": "electron-packager --electron-version=1.8.2-beta.3 ."
   },
   "author": "",
   "license": "ISC",
