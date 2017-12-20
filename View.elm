@@ -1,12 +1,13 @@
 module View exposing (view)
 
+import Dict
 import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
 import FileReader exposing (NativeFile)
 import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input, hr, ul, li)
 import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height, value, placeholder)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (encodeUri)
-import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass)
+import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass, initImage)
 import Update exposing (Msg(..))
 import Serialization
 
@@ -119,7 +120,7 @@ drawing model =
     let
         img =
             List.head model.pending
-                |> Maybe.withDefault (Image "https://placekitten.com/g/720/540" [])
+                |> Maybe.withDefault initImage
         url =
             "url(" ++ img.url ++ ")"
         w =
@@ -148,23 +149,16 @@ drawing model =
 sidebar : Model -> Html Msg
 sidebar model =
     div []
-        [ h6 [] [ text "Classes"]
-        , classList model
-        , hr [] []
-        , h6 [] [ text "Shapes"]
+        [ classList model
         , shapeList model
-        {-
-        , table [ class "table table-sm table-bordered table-striped" ]
-                [ tbody []
-                        (List.indexedMap shapeRow img.shapes)
-                ]
-        -}
+        , labelList model
         ]
 
 pGeomLabel : PendingGeometry -> String
 pGeomLabel pg =
     case pg of
         NoShape       -> "Shape"
+        PendingLabel  -> "Label"
         PendingRect _ -> "Rect"
         PendingQuad _ -> "Quad"
 
@@ -184,7 +178,8 @@ classList model =
                 "dropdown-menu"
     in
     ul [ class "list-group" ]
-       ( (List.indexedMap classListItem model.labelClasses)
+       (  [ li [ class "list-group-item header" ] [ text "Classes" ]]
+       ++ (List.indexedMap classListItem model.labelClasses)
        ++ [ li [ class "list-group-item pending-label form-inline" ]
                [ div [ class "btn-group btn-group-xs mr-2" ]
                      [ button [ class "btn btn-fw btn-outline-primary dropdown-toggle"
@@ -199,11 +194,15 @@ classList model =
                                , onClick SelectRect
                                ]
                                [ text "Rect" ]
+                           , a [ class "dropdown-item"
+                               , onClick SelectLabel
+                               ]
+                               [ text "None (Label)" ]
                            ]
                      ]
                 , input [ class "form-control form-control-xs mr-2"
                         , value model.pendingClass.label
-                        , onInput SetLabel
+                        , onInput SetLabelClassLabel
                         , placeholder "label"
                         ]
                         []
@@ -225,10 +224,15 @@ classListItem index lc =
                 "btn btn-fw btn-xs btn-outline-primary mr-2"
     in
     li [ class "list-group-item form-inline" ]
-       [ button [ class buttonClass
-                , onClick (ActivateLabel index)
-                ]
-                [ text (pGeomLabel lc.geom) ]
+       [ case lc.geom of
+            PendingLabel ->
+                span [ class "btn btn-xs btn-fw mr-2" ]
+                     [ text "Label" ]
+            _ ->
+                button [ class buttonClass
+                        , onClick (ActivateLabel index)
+                        ]
+                        [ text (pGeomLabel lc.geom) ]
        , input [ class "form-control form-control-xs mr-2"
                , placeholder "label"
                , disabled True
@@ -246,10 +250,11 @@ shapeList model =
     let
         img =
             List.head model.pending
-                |> Maybe.withDefault (Image "" [])
+                |> Maybe.withDefault initImage
     in
     ul [ class "list-group" ]
-       (List.indexedMap shapeListItem img.shapes)
+       ([ li [ class "list-group-item header" ] [ text "Shapes" ]]
+       ++ (List.indexedMap shapeListItem img.shapes))
 
 shapeListItem : Int -> Shape -> Html Msg
 shapeListItem index s =
@@ -275,6 +280,46 @@ shapeListItem index s =
                 , onClick <| DeleteShape index
                 ]
                 [ text "Delete" ]
+       ]
+
+labelList : Model -> Html Msg
+labelList model =
+    let
+        isLabel lc =
+            case lc.geom of
+                PendingLabel -> True
+                _ -> False
+        labels =
+            List.filter isLabel model.labelClasses
+                |> List.map .label
+                |> List.sort
+    in
+    if List.isEmpty labels then
+        text ""
+    else
+        ul [ class "list-group" ]
+           ([ li [ class "list-group-item header" ] [ text "Labels" ]]
+           ++ (List.map (labelListItem model) labels))
+
+labelListItem : Model -> String -> Html Msg
+labelListItem model key =
+    let
+        img =
+            List.head model.pending
+                |> Maybe.withDefault initImage
+        val =
+            Dict.get key img.labels
+                |> Maybe.withDefault ""
+    in
+    li [ class "list-group-item form-inline" ]
+       [ span [ class "btn btn-xs btn-fw mr-2" ]
+              [ text key ]
+       , input [ class "form-control form-control-xs mr-2"
+               , placeholder "value"
+               , value val
+               , onInput (SetImageLabel key)
+               ]
+               []
        ]
 
 maybeConvertButton : Geometry -> Int -> Html Msg

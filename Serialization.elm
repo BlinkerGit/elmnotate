@@ -1,6 +1,7 @@
 module Serialization exposing (..)
 
 import Array
+import Dict
 import Json.Encode exposing (Value, list, object, int, string, encode)
 import Json.Decode as Dec
 import Model exposing (Model, Image, Shape, Point, Offset, Geometry(..))
@@ -23,6 +24,8 @@ serializedImage i =
     object
         [ ("url",    string i.url)
         , ("shapes", list <| List.map serializedShape i.shapes)
+        , ("labels", object <| List.map (\(k,v) -> (k, string v))
+                            <| Dict.toList i.labels)
         ]
 
 serializedShape : Shape -> Value
@@ -53,9 +56,15 @@ fromJson s =
 
 decodeImage : Dec.Decoder Image
 decodeImage =
-    Dec.map2 Image
+    Dec.map3 Image
         (Dec.field "url"    Dec.string)
         (Dec.field "shapes" (Dec.list decodeShape))
+        (Dec.oneOf
+            [ (Dec.field "labels" (Dec.dict Dec.string))
+            , Dec.succeed Dict.empty
+            ]
+            )
+
 
 decodeShape : Dec.Decoder Shape
 decodeShape =

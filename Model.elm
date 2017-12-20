@@ -1,6 +1,7 @@
 module Model exposing (..)
 
 import DropZone
+import Dict exposing (Dict)
 
 type alias Point =
     { x: Int
@@ -30,6 +31,7 @@ type Geometry
 
 type PendingGeometry
     = NoShape
+    | PendingLabel
     | PendingRect (List Point)
     | PendingQuad (List Point)
 
@@ -58,7 +60,12 @@ initLabelClass =
 type alias Image =
     { url: String
     , shapes: List Shape
+    , labels: Dict String String
     }
+
+initImage : Image
+initImage =
+    Image "" [] Dict.empty
 
 type alias Model =
     { pending: List Image
@@ -94,7 +101,7 @@ graphics m =
     let
         current =
             List.head m.pending
-                |> Maybe.withDefault (Image "" [])
+                |> Maybe.withDefault initImage
         lines =
             List.map .geom current.shapes
                 |> List.concatMap toLines
@@ -104,6 +111,7 @@ graphics m =
         points =
             case m.pendingGeom of
                 NoShape -> []
+                PendingLabel -> []
                 PendingRect l -> l
                 PendingQuad l -> l
         highlight =

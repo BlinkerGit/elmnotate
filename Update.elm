@@ -5,7 +5,7 @@ import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
 import MimeType
 import Task
-import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..))
+import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage)
 import Canvas exposing (render, loadImage)
 import Serialization exposing (fromJson)
 
@@ -25,7 +25,9 @@ type Msg
     | ToggleGeomMenu
     | SelectQuad
     | SelectRect
-    | SetLabel String
+    | SelectLabel
+    | SetLabelClassLabel String
+    | SetImageLabel String String
     | AddLabelClass
     | ActivateLabel Int
     | ActivateShape Int
@@ -49,7 +51,7 @@ update msg model =
                     String.trim content
                         |> String.split("\n")
                 new_images =
-                    List.map (\u -> Image u []) urls
+                    List.map (\u -> { initImage | url = u }) urls
                 pending =
                     new_images ++ model.pending
                 -- TODO dedupe?
@@ -65,7 +67,7 @@ update msg model =
                     case fromJson content of
                         Ok p_ -> p_
                         Err _ -> []
-                toLabel shape =
+                toLabelClass shape =
                     let
                         pg =
                             case shape.geom of
@@ -73,15 +75,21 @@ update msg model =
                                 Quad _ _ _ _ -> PendingQuad []
                     in
                     (shape.label, pg)
-                labels =
+                labelClasses =
                     List.concatMap .shapes pending
-                        |> List.map toLabel
+                        |> List.map toLabelClass
                         -- unique labels only
                         |> Dict.fromList
                         |> Dict.toList
                         |> List.map (\(l,g) -> LabelClass l g False)
+                labels =
+                    List.concatMap (.labels >> Dict.keys) pending
+                        |> List.map (\k -> (k,1))
+                        |> Dict.fromList
+                        |> Dict.toList
+                        |> List.map (\(k,_) -> LabelClass k PendingLabel False)
             in
-            ( { model | pending = pending, labelClasses = labels }
+            ( { model | pending = pending, labelClasses = labelClasses ++ labels }
             , (loadImageCmd pending)
             )
         OnJsonContent (Err error) ->
@@ -123,8 +131,7 @@ update msg model =
                 point =
                     unscalePoint model.scale canvasPoint
                 img =
-                    List.head model.pending
-                        |> Maybe.withDefault (Image "" [])
+                    currentImage model
                 indexedShapes =
                     img.shapes
                         |> List.map (.geom)
@@ -191,8 +198,7 @@ update msg model =
         DeleteShape index ->
             let
                 img_ =
-                    List.head model.pending
-                        |> Maybe.withDefault (Image "" [])
+                    currentImage model
                 h =
                     List.take index img_.shapes
                 t =
@@ -226,8 +232,7 @@ update msg model =
         ConvertRect index ->
             let
                 img_ =
-                    List.head model.pending
-                        |> Maybe.withDefault (Image "" [])
+                    currentImage model
                 h =
                     List.take index img_.shapes
                 s_ =
@@ -272,7 +277,15 @@ update msg model =
                     { p_ | active = False, geom = (PendingRect []) }
             in
             ( { model | pendingClass = p }, Cmd.none )
-        SetLabel l ->
+        SelectLabel ->
+            let
+                p_ =
+                    model.pendingClass
+                p =
+                    { p_ | active = False, geom = PendingLabel }
+            in
+            ( { model | pendingClass = p }, Cmd.none )
+        SetLabelClassLabel l ->
             let
                 p_ =
                     model.pendingClass
@@ -280,6 +293,18 @@ update msg model =
                     { p_ | label = l }
             in
             ( { model | pendingClass = p }, Cmd.none )
+        SetImageLabel key value ->
+            let
+                img_ =
+                    currentImage model
+                img =
+                    { img_ | labels = Dict.insert key value img_.labels }
+                updated =
+                    case model.pending of
+                        [] -> model
+                        x :: xs -> { model | pending = img :: xs }
+            in
+            ( updated, Cmd.none )
         AddLabelClass ->
             let
                 c =
@@ -312,8 +337,7 @@ update msg model =
                     in
                     { s | active = a }
                 img =
-                    List.head model.pending
-                        |> Maybe.withDefault (Image "" [])
+                    currentImage model
                 shapes =
                     List.indexedMap setActive img.shapes
                 p =
@@ -327,6 +351,7 @@ update msg model =
                 nextPending =
                     case model.pendingGeom of
                         NoShape -> NoShape
+                        PendingLabel -> NoShape
                         PendingRect _ -> PendingRect []
                         PendingQuad _ -> PendingQuad []
                 processed =
@@ -350,6 +375,7 @@ update msg model =
                 nextPending =
                     case model.pendingGeom of
                         NoShape -> NoShape
+                        PendingLabel -> NoShape
                         PendingRect _ -> PendingRect []
                         PendingQuad _ -> PendingQuad []
                 pending =
@@ -410,6 +436,11 @@ moveDraggingPoint drag point image =
             in
             { image | shapes = List.indexedMap updateShape image.shapes }
 
+currentImage : Model -> Image
+currentImage model =
+    List.head model.pending
+        |> Maybe.withDefault initImage
+
 toQuad : Geometry -> Geometry
 toQuad g =
     case g of
@@ -430,6 +461,8 @@ addPoint m p =
             case m.pendingGeom of
                 NoShape ->
                     NoShape
+                PendingLabel ->
+                    NoShape
                 PendingRect points ->
                     PendingRect (points ++ [p])
                 PendingQuad points ->
@@ -437,6 +470,8 @@ addPoint m p =
         nextPending =
             case m.pendingGeom of
                 NoShape ->
+                    NoShape
+                PendingLabel ->
                     NoShape
                 PendingRect points ->
                     PendingRect []
@@ -449,8 +484,7 @@ addPoint m p =
         g =
             completedShape pg
         current =
-            List.head m.pending
-                |> Maybe.withDefault (Image "" [])
+            currentImage m
         current_ =
             case g of
                 Nothing -> current
@@ -470,6 +504,7 @@ completedShape : PendingGeometry -> Maybe Geometry
 completedShape pg =
     case pg of
         NoShape -> Nothing
+        PendingLabel -> Nothing
         PendingRect points ->
             if List.length points < 2 then
                 Nothing
