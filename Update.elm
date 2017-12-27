@@ -18,6 +18,7 @@ type Msg
     | CancelReset
     | ClientDims Offset Offset
     | WindowResized Offset
+    | KeyPressed Char
     | MouseMoved Point
     | MouseDown Point
     | MouseUp Point
@@ -140,6 +141,14 @@ update msg model =
             ( updated
             , render <| graphics updated
             )
+        KeyPressed char ->
+            case char of
+                'n' ->
+                    navigateToNext model
+                'p' ->
+                    navigateToPrevious model
+                _ ->
+                    (model, Cmd.none)
         MouseMoved pt ->
             let
                 canvasPoint =
@@ -364,53 +373,61 @@ update msg model =
             in
             ( { model | pending = p }, Cmd.none )
         NavPrev ->
-            let
-                nextPending =
-                    case model.pendingGeom of
-                        NoShape -> NoShape
-                        PendingLabel -> NoShape
-                        PendingRect _ -> PendingRect []
-                        PendingQuad _ -> PendingQuad []
-                processed =
-                    List.drop 1 model.processed
-                img =
-                    List.head model.processed
-                pending =
-                    case img of
-                        Nothing ->
-                            model.pending
-                        Just i ->
-                            i :: model.pending
-                cmd =
-                    loadImageCmd pending
-            in
-            ( { model | pending = pending, processed = processed, pendingGeom = nextPending }
-            , cmd
-            )
+            navigateToPrevious model
         NavNext ->
-            let
-                nextPending =
-                    case model.pendingGeom of
-                        NoShape -> NoShape
-                        PendingLabel -> NoShape
-                        PendingRect _ -> PendingRect []
-                        PendingQuad _ -> PendingQuad []
-                pending =
-                    List.drop 1 model.pending
-                img =
-                    List.head model.pending
-                processed =
-                    case img of
-                        Nothing ->
-                            model.processed
-                        Just i ->
-                            i :: model.processed
-                cmd =
-                    loadImageCmd pending
-            in
-            ( { model | pending = pending, processed = processed, pendingGeom = nextPending }
-            , cmd
-            )
+            navigateToNext model
+
+navigateToPrevious : Model -> (Model, Cmd Msg)
+navigateToPrevious model =
+    let
+        nextPending =
+            case model.pendingGeom of
+                NoShape -> NoShape
+                PendingLabel -> NoShape
+                PendingRect _ -> PendingRect []
+                PendingQuad _ -> PendingQuad []
+        processed =
+            List.drop 1 model.processed
+        img =
+            List.head model.processed
+        pending =
+            case img of
+                Nothing ->
+                    model.pending
+                Just i ->
+                    i :: model.pending
+        cmd =
+            loadImageCmd pending
+    in
+    ({ model | pending = pending, processed = processed, pendingGeom = nextPending }
+    , cmd
+    )
+
+navigateToNext : Model -> (Model, Cmd Msg)
+navigateToNext model =
+    let
+        nextPending =
+            case model.pendingGeom of
+                NoShape -> NoShape
+                PendingLabel -> NoShape
+                PendingRect _ -> PendingRect []
+                PendingQuad _ -> PendingQuad []
+        pending =
+            List.drop 1 model.pending
+        img =
+            List.head model.pending
+        processed =
+            case img of
+                Nothing ->
+                    model.processed
+                Just i ->
+                    i :: model.processed
+        cmd =
+            loadImageCmd pending
+    in
+    ({ model | pending = pending, processed = processed, pendingGeom = nextPending }
+    , cmd
+    )
 
 inCanvas : Point -> Offset -> Bool
 inCanvas p o =

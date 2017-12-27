@@ -1,9 +1,11 @@
 module Main exposing (..)
 
 import Array
+import Char
 import Html exposing (program)
 import Json.Decode exposing (decodeValue, decodeString, array, int)
 import Json.Encode exposing (Value)
+import Keyboard
 import Mouse
 import Window
 
@@ -18,10 +20,10 @@ init =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    -- todo: add mouse clicks, downs, ups, and moves (if dragging)
     Sub.batch
         [ clientDims (decodeClientDims)
         , Window.resizes (\{height, width} -> WindowResized (Offset width height))
+        , Keyboard.presses (\code -> KeyPressed (Char.fromCode code))
         , Mouse.moves (\{x, y} -> MouseMoved (Point x y))
         , Mouse.downs (\{x, y} -> MouseDown (Point x y))
         , Mouse.ups (\{x, y} -> MouseUp (Point x y))
