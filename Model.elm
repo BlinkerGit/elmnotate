@@ -70,6 +70,7 @@ initImage =
 type alias Model =
     { pending: List Image
     , processed: List Image
+    , resetRequested: Bool
     , pendingGeom: PendingGeometry
     , labelClasses: List LabelClass
     , pendingClass: LabelClass
@@ -86,6 +87,7 @@ init =
     Model
         []
         []
+        False
         NoShape
         []
         initLabelClass

@@ -3,7 +3,7 @@ module View exposing (view)
 import Dict
 import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
 import FileReader exposing (NativeFile)
-import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input, hr, ul, li)
+import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input, hr, ul, li, br)
 import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height, value, placeholder)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (encodeUri)
@@ -101,11 +101,34 @@ dropZoneDefault =
 
 complete : Model -> Html Msg
 complete model =
+    let
+        displayText =
+            if  model.resetRequested then
+                "WARNING, this will clear all data.  Are you sure?"
+            else
+                "All done!  Download your data below."
+    in
     div [ id "complete"
         , class "center-pad"
         ]
-        [ text "all done!  download your data below:"
+        [ text displayText
+        , br [] []
+        , maybeCancelResetButton model
+        , button [ class "btn btn-large btn-danger"
+                 , onClick RequestReset
+                 ]
+                 [ text "Start Over" ]
         ]
+
+maybeCancelResetButton : Model -> Html Msg
+maybeCancelResetButton model =
+    if model.resetRequested then
+        button [ class "btn btn-large btn-outline-primary mr-2"
+               , onClick CancelReset
+               ]
+               [ text "Cancel" ]
+    else
+        text ""
 
 inProcess : Model -> List (Html Msg)
 inProcess model =

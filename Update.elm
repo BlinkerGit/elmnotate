@@ -14,6 +14,8 @@ type Msg
     | DnD (DropZoneMessage (List NativeFile))
     | OnTextContent (Result FileReader.Error String)
     | OnJsonContent (Result FileReader.Error String)
+    | RequestReset
+    | CancelReset
     | ClientDims Offset Offset
     | WindowResized Offset
     | MouseMoved Point
@@ -94,6 +96,21 @@ update msg model =
             )
         OnJsonContent (Err error) ->
             (model, Cmd.none)
+        RequestReset ->
+            let
+                updated =
+                    if model.resetRequested then
+                        let
+                            i =
+                                Model.init
+                        in
+                        { i | labelClasses = model.labelClasses }
+                    else
+                        { model | resetRequested = True }
+            in
+            (updated, Cmd.none)
+        CancelReset ->
+            ({ model | resetRequested = False }, Cmd.none)
         ClientDims imgSize pnlSize ->
             let
                 ratioW =
