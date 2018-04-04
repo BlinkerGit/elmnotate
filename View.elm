@@ -42,7 +42,7 @@ header model =
     in
     nav [ class "navbar navbar-light bg-light justify-content-between" ]
         [ span [ class "navbar-brand" ]
-               [ text "Annotate"]
+               [ text "Elmnotate"]
         , span []
                [ text msg ]
         ]

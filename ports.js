@@ -6,7 +6,7 @@ let container = document.getElementById('container')
 
 // start the elm app in the container
 // and keep a reference for communicating with the app
-let annotate = Elm.Main.embed(container)
+let elmnotate = Elm.Main.embed(container)
 
 
 function withCanvasContext(cb) {
@@ -20,7 +20,7 @@ function withCanvasContext(cb) {
 }
 
 // draw graphics on the canvas
-annotate.ports.render.subscribe(function(graphics) {
+elmnotate.ports.render.subscribe(function(graphics) {
     const doRender = function() {
         clearCanvas();
         if (graphics.highlight.length > 0) {
@@ -42,7 +42,7 @@ annotate.ports.render.subscribe(function(graphics) {
 });
 
 // discover the image size and report back to elm
-annotate.ports.loadImage.subscribe(function(url) {
+elmnotate.ports.loadImage.subscribe(function(url) {
     clearCanvas();
     getImageSize(url, function(imgW, imgH) {
         let updateDims = function() {
@@ -53,7 +53,7 @@ annotate.ports.loadImage.subscribe(function(url) {
                     height: canvasPanel.offsetHeight,
                 };
 
-                annotate.ports.clientDims.send([
+                elmnotate.ports.clientDims.send([
                     imgW,
                     imgH,
                     panelSize.width,

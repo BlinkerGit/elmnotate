@@ -1,5 +1,5 @@
 {
-  "name": "annotate",
+  "name": "elmnotate",
   "version": "1.0.0",
   "description": "",
   "main": "main.js",
@@ -8,12 +8,15 @@
     "elm:watch": "chokidar '**/*.elm' -c 'npm run elm:make'",
     "start": "NODE_ENV=${NODE_ENV-development} electron main.js",
     "watch": "npm run elm:watch & npm run start & wait",
-    "package": "electron-packager --electron-version=1.8.2-beta.3 ."
+    "package": "electron-packager --electron-version=1.8.2-beta.3 .",
+    "package-mac": "electron-packager --electron-version=1.8.2-beta.3 --platform=darwin .",
+    "package-win": "electron-packager --electron-version=1.8.2-beta.3 --platform=win32 .",
+    "package-linux": "electron-packager --electron-version=1.8.2-beta.3 --platform=linux ."
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "chokidar": "^1.7.0",
+    "chokidar-cli": "^1.2.0",
     "electron-packager": "^10.1.0"
   },
   "dependencies": {
