@@ -6,6 +6,8 @@ text labels with or without an associated geometry per image.
 
 ## Usage
 
+![Screencast](https://gist.github.com/rubysolo/62f88ea08d61171fd150d679ddf850f5/raw/82291170991dc29835ef99cca4d486e96d91eae8/elmnotate.gif)
+
 ### Scenario 1 : Image Classification
 
 Drag and drop a text file containing URLs for your images onto the drop zone
