@@ -29,6 +29,7 @@ type Msg
     | SelectQuad
     | SelectRect
     | SelectLabel
+    | SelectDropDown
     | SetLabelClassLabel String
     | SetImageLabel String String
     | AddLabelClass
@@ -311,6 +312,14 @@ update msg model =
                     { p_ | active = False, geom = PendingLabel }
             in
             ( { model | pendingClass = p }, Cmd.none )
+        SelectDropDown ->
+            let
+                p_ =
+                    model.pendingClass
+                p =
+                    { p_ | active = False, geom = PendingDropDown }
+            in
+            ( { model | pendingClass = p }, Cmd.none )
         SetLabelClassLabel l ->
             let
                 p_ =
@@ -384,6 +393,7 @@ navigateToPrevious model =
             case model.pendingGeom of
                 NoShape -> NoShape
                 PendingLabel -> NoShape
+                PendingDropDown -> NoShape
                 PendingRect _ -> PendingRect []
                 PendingQuad _ -> PendingQuad []
         processed =
@@ -410,6 +420,7 @@ navigateToNext model =
             case model.pendingGeom of
                 NoShape -> NoShape
                 PendingLabel -> NoShape
+                PendingDropDown -> NoShape
                 PendingRect _ -> PendingRect []
                 PendingQuad _ -> PendingQuad []
         pending =
@@ -497,6 +508,7 @@ addPoint m p =
                     NoShape
                 PendingLabel ->
                     NoShape
+                PendingDropDown -> NoShape
                 PendingRect points ->
                     PendingRect (points ++ [p])
                 PendingQuad points ->
@@ -505,6 +517,7 @@ addPoint m p =
             case m.pendingGeom of
                 NoShape ->
                     NoShape
+                PendingDropDown -> NoShape
                 PendingLabel ->
                     NoShape
                 PendingRect points ->
@@ -539,6 +552,7 @@ completedShape pg =
     case pg of
         NoShape -> Nothing
         PendingLabel -> Nothing
+        PendingDropDown -> Nothing
         PendingRect points ->
             if List.length points < 2 then
                 Nothing

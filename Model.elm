@@ -32,6 +32,7 @@ type Geometry
 type PendingGeometry
     = NoShape
     | PendingLabel
+    | PendingDropDown
     | PendingRect (List Point)
     | PendingQuad (List Point)
 
@@ -114,6 +115,7 @@ graphics m =
             case m.pendingGeom of
                 NoShape -> []
                 PendingLabel -> []
+                PendingDropDown -> []
                 PendingRect l -> l
                 PendingQuad l -> l
         highlight =
