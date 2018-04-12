@@ -68,6 +68,12 @@ initImage : Image
 initImage =
     Image "" [] Dict.empty
 
+type alias DropDownData = Dict String (List String)
+
+initDropDownData : Dict String (List String)
+initDropDownData = 
+    Dict.fromList [ ("test", ["a1-sauce", "b", "c", "d"]) ]
+
 type alias Model =
     { pending: List Image
     , processed: List Image
@@ -81,6 +87,7 @@ type alias Model =
     , panelSize: Offset
     , scale: Float
     , dropZone: DropZone.Model
+    , dropDownData: DropDownData
     }
 
 init : Model
@@ -98,6 +105,7 @@ init =
         (Offset 2000 2000)
         1.0
         DropZone.init
+        initDropDownData
 
 graphics : Model -> Graphics
 graphics m =

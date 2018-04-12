@@ -338,18 +338,18 @@ labelListItem model label_class =
             li [ class "list-group-item form-inline" ]
             [ span [ class "btn btn-xs btn-fw mr-2" ]
                     [ text key ]
-            , labelListItemInput key val label_class.geom
+            , labelListItemInput key val label_class.geom model.dropDownData
             ]
         PendingDropDown ->
             li [ class "list-group-item form-inline" ]
             [ span [ class "btn btn-xs btn-fw mr-2" ]
                     [ text key ]
-            , labelListItemInput key val label_class.geom
+            , labelListItemInput key val label_class.geom model.dropDownData
             ]
         _ -> text ""
 
-labelListItemInput : String -> String -> PendingGeometry -> Html Msg
-labelListItemInput key val geom =
+labelListItemInput : String -> String -> PendingGeometry -> Dict.Dict String (List String) -> Html Msg
+labelListItemInput key val geom dropdown_data =
     case geom of
         PendingLabel ->
             input [ class "form-control form-control-xs mr-2"
@@ -361,14 +361,18 @@ labelListItemInput key val geom =
         PendingDropDown ->
             select [ class "form-control form-control-xs mr-2"
                    , onInput (SetImageLabel key)
-                   ] 
-                   [
-                     option [value "a"] [text "a"]
-                   , option [value "b"] [text "b"]
-                   , option [value "c"] [text "c"]
                    ]
+                   (case (Dict.get key dropdown_data) of
+                        Nothing -> []
+                        Just value ->
+                            (List.map makeOption value)
+                   )                                      
         _ ->
             text ""
+
+makeOption : String -> Html Msg
+makeOption v = 
+    option [value v] [text v]
 
 maybeConvertButton : Geometry -> Int -> Html Msg
 maybeConvertButton g index =
