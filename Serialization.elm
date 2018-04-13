@@ -24,9 +24,22 @@ serializedImage i =
     object
         [ ("url",    string i.url)
         , ("shapes", list <| List.map serializedShape i.shapes)
-        -- , ("labels", object <| List.map (\(k,v) -> (k, string v))
-        --                     <| Dict.toList i.labels)
+        , ("labels", object <| List.map (\(k,v) -> (k, serializeLabelEntry v))
+                            <| Dict.toList i.labels)
         ]
+
+serializeLabelEntry : LabelEntry -> Value
+serializeLabelEntry v =
+    object
+        [ ("value", string v.value)
+        , ("label_type", serializeLabelType v.label_type)
+        ]
+
+serializeLabelType : LabelType -> Value
+serializeLabelType t =
+    case t of 
+        Label -> string "label"
+        DropDown -> string "dropdown"
 
 serializedShape : Shape -> Value
 serializedShape s =
