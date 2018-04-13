@@ -5,7 +5,7 @@ import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
 import MimeType
 import Task
-import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage)
+import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage, LabelEntry, LabelType(..))
 import Canvas exposing (render, loadImage)
 import Serialization exposing (fromJson)
 
@@ -32,6 +32,7 @@ type Msg
     | SelectDropDown
     | SetLabelClassLabel String
     | SetImageLabel String String
+    | SetImageDropDown String String
     | AddLabelClass
     | ActivateLabel Int
     | ActivateShape Int
@@ -87,11 +88,10 @@ update msg model =
                         |> Dict.toList
                         |> List.map (\(l,g) -> LabelClass l g False)
                 labels =
-                    List.concatMap (.labels >> Dict.keys) pending
-                        |> List.map (\k -> (k,1))
+                    List.concatMap (.labels >> Dict.toList) pending
                         |> Dict.fromList
                         |> Dict.toList
-                        |> List.map (\(k,_) -> LabelClass k PendingLabel False)
+                        |> List.map (\(k,v) -> LabelClass k (pendingTypeFromLabelEntry v) False)
             in
             ( { model | pending = pending, labelClasses = labelClasses ++ labels }
             , (loadImageCmd pending)
@@ -333,7 +333,19 @@ update msg model =
                 img_ =
                     currentImage model
                 img =
-                    { img_ | labels = Dict.insert key value img_.labels }
+                    { img_ | labels = Dict.insert key (LabelEntry value Label) img_.labels }
+                updated =
+                    case model.pending of
+                        [] -> model
+                        x :: xs -> { model | pending = img :: xs }
+            in
+            ( updated, Cmd.none )
+        SetImageDropDown key value ->
+            let
+                img_ =
+                    currentImage model
+                img =
+                    { img_ | labels = Dict.insert key (LabelEntry value DropDown) img_.labels }
                 updated =
                     case model.pending of
                         [] -> model
@@ -386,6 +398,12 @@ update msg model =
         NavNext ->
             navigateToNext model
 
+pendingTypeFromLabelEntry : LabelEntry -> PendingGeometry
+pendingTypeFromLabelEntry entry =
+    case entry.label_type of 
+        Label -> PendingLabel
+        DropDown -> PendingDropDown
+
 navigateToPrevious : Model -> (Model, Cmd Msg)
 navigateToPrevious model =
     let
@@ -393,7 +411,7 @@ navigateToPrevious model =
             case model.pendingGeom of
                 NoShape -> NoShape
                 PendingLabel -> NoShape
-                PendingDropDown -> NoShape
+                PendingDropDown -> PendingDropDown
                 PendingRect _ -> PendingRect []
                 PendingQuad _ -> PendingQuad []
         processed =
@@ -420,7 +438,7 @@ navigateToNext model =
             case model.pendingGeom of
                 NoShape -> NoShape
                 PendingLabel -> NoShape
-                PendingDropDown -> NoShape
+                PendingDropDown -> PendingDropDown
                 PendingRect _ -> PendingRect []
                 PendingQuad _ -> PendingQuad []
         pending =
@@ -508,7 +526,7 @@ addPoint m p =
                     NoShape
                 PendingLabel ->
                     NoShape
-                PendingDropDown -> NoShape
+                PendingDropDown -> PendingDropDown
                 PendingRect points ->
                     PendingRect (points ++ [p])
                 PendingQuad points ->
@@ -517,7 +535,7 @@ addPoint m p =
             case m.pendingGeom of
                 NoShape ->
                     NoShape
-                PendingDropDown -> NoShape
+                PendingDropDown -> PendingDropDown
                 PendingLabel ->
                     NoShape
                 PendingRect points ->

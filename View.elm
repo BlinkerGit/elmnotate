@@ -7,7 +7,7 @@ import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, 
 import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height, value, placeholder)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (encodeUri)
-import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass, initImage)
+import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass, initImage, LabelEntry, LabelType(..))
 import Update exposing (Msg(..))
 import Serialization
 
@@ -175,6 +175,7 @@ sidebar model =
         [ classList model
         , shapeList model
         , labelList model
+        , text (toString model.labelClasses)
         ]
 
 pGeomLabel : PendingGeometry -> String
@@ -331,7 +332,7 @@ labelListItem model label_class =
         key = label_class.label
         val =
             Dict.get key img.labels
-                |> Maybe.withDefault ""
+                |> Maybe.withDefault (LabelEntry "" Label)
     in
     case label_class.geom of 
         PendingLabel ->
@@ -348,13 +349,13 @@ labelListItem model label_class =
             ]
         _ -> text ""
 
-labelListItemInput : String -> String -> PendingGeometry -> Dict.Dict String (List String) -> Html Msg
+labelListItemInput : String -> LabelEntry -> PendingGeometry -> Dict.Dict String (List String) -> Html Msg
 labelListItemInput key val geom dropdown_data =
     case geom of
         PendingLabel ->
             input [ class "form-control form-control-xs mr-2"
                         , placeholder "value"
-                        , value val
+                        , value val.value
                         , onInput (SetImageLabel key)
                         ]
                         []
@@ -366,9 +367,8 @@ labelListItemInput key val geom dropdown_data =
                         Nothing -> []
                         Just value ->
                             (List.map makeOption value)
-                   )                                      
-        _ ->
-            text ""
+                   )     
+        _ -> text ""                                 
 
 makeOption : String -> Html Msg
 makeOption v = 

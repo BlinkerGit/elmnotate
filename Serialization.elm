@@ -4,7 +4,7 @@ import Array
 import Dict
 import Json.Encode exposing (Value, list, object, int, string, encode)
 import Json.Decode as Dec
-import Model exposing (Model, Image, Shape, Point, Offset, Geometry(..))
+import Model exposing (Model, Image, Shape, Point, Offset, Geometry(..), LabelEntry, LabelType(..))
 
 toJson : Model -> String
 toJson m =
@@ -24,8 +24,8 @@ serializedImage i =
     object
         [ ("url",    string i.url)
         , ("shapes", list <| List.map serializedShape i.shapes)
-        , ("labels", object <| List.map (\(k,v) -> (k, string v))
-                            <| Dict.toList i.labels)
+        -- , ("labels", object <| List.map (\(k,v) -> (k, string v))
+        --                     <| Dict.toList i.labels)
         ]
 
 serializedShape : Shape -> Value
@@ -60,11 +60,23 @@ decodeImage =
         (Dec.field "url"    Dec.string)
         (Dec.field "shapes" (Dec.list decodeShape))
         (Dec.oneOf
-            [ (Dec.field "labels" (Dec.dict Dec.string))
+            [ (Dec.field "labels" (Dec.dict decodeLabelEntry))
             , Dec.succeed Dict.empty
             ]
             )
 
+decodeLabelEntry : Dec.Decoder LabelEntry 
+decodeLabelEntry =
+    Dec.map2 LabelEntry
+        (Dec.field "value" Dec.string)
+        ((Dec.field "label_type" Dec.string) |> Dec.andThen decodeLabelType)
+
+decodeLabelType : String -> Dec.Decoder LabelType
+decodeLabelType val =
+    if val == "label" then
+        Dec.succeed <| Label
+    else
+        Dec.succeed <| DropDown
 
 decodeShape : Dec.Decoder Shape
 decodeShape =

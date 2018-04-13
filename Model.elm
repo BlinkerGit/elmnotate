@@ -58,10 +58,19 @@ initLabelClass =
         NoShape
         False
 
+type LabelType
+    = Label
+    | DropDown
+
+type alias LabelEntry =
+    { value: String
+    , label_type: LabelType
+    }
+    
 type alias Image =
     { url: String
     , shapes: List Shape
-    , labels: Dict String String
+    , labels: Dict String LabelEntry
     }
 
 initImage : Image
