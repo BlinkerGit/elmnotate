@@ -32,6 +32,7 @@ type Geometry
 type PendingGeometry
     = NoShape
     | PendingLabel
+    | PendingDropDown
     | PendingRect (List Point)
     | PendingQuad (List Point)
 
@@ -57,15 +58,43 @@ initLabelClass =
         NoShape
         False
 
+type LabelType
+    = Label
+    | DropDown
+
+type alias LabelEntry =
+    { value: String
+    , label_type: LabelType
+    }
+    
+type alias MetaData = 
+    { dropdown: Dict String (List String)
+    }
+
+initMetaData : MetaData
+initMetaData = 
+    MetaData Dict.empty
+
+type alias Document =
+    { data: (List Image),
+      meta: MetaData
+    }
+    
+initDocument : Document
+initDocument = 
+    Document [] initMetaData
+
 type alias Image =
     { url: String
     , shapes: List Shape
-    , labels: Dict String String
+    , labels: Dict String LabelEntry
     }
 
 initImage : Image
 initImage =
     Image "" [] Dict.empty
+
+type alias DropDownData = Dict String (List String)
 
 type alias Model =
     { pending: List Image
@@ -80,6 +109,7 @@ type alias Model =
     , panelSize: Offset
     , scale: Float
     , dropZone: DropZone.Model
+    , metaData: MetaData
     }
 
 init : Model
@@ -97,6 +127,7 @@ init =
         (Offset 2000 2000)
         1.0
         DropZone.init
+        initMetaData
 
 graphics : Model -> Graphics
 graphics m =
@@ -114,6 +145,7 @@ graphics m =
             case m.pendingGeom of
                 NoShape -> []
                 PendingLabel -> []
+                PendingDropDown -> []
                 PendingRect l -> l
                 PendingQuad l -> l
         highlight =

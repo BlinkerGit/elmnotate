@@ -3,11 +3,11 @@ module View exposing (view)
 import Dict
 import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
 import FileReader exposing (NativeFile)
-import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input, hr, ul, li, br)
+import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input, hr, ul, li, br, select, option)
 import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height, value, placeholder)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (encodeUri)
-import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass, initImage)
+import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass, initImage, LabelEntry, LabelType(..))
 import Update exposing (Msg(..))
 import Serialization
 
@@ -182,6 +182,7 @@ pGeomLabel pg =
     case pg of
         NoShape       -> "Shape"
         PendingLabel  -> "Label"
+        PendingDropDown  -> "DropDown"
         PendingRect _ -> "Rect"
         PendingQuad _ -> "Quad"
 
@@ -220,7 +221,11 @@ classList model =
                            , a [ class "dropdown-item"
                                , onClick SelectLabel
                                ]
-                               [ text "None (Label)" ]
+                               [ text "Label" ]
+                           , a [ class "dropdown-item"
+                               , onClick SelectDropDown
+                               ]
+                               [ text "DropDown" ]
                            ]
                      ]
                 , input [ class "form-control form-control-xs mr-2"
@@ -251,6 +256,9 @@ classListItem index lc =
             PendingLabel ->
                 span [ class "btn btn-xs btn-fw mr-2" ]
                      [ text "Label" ]
+            PendingDropDown ->
+                span [ class "btn btn-xs btn-fw mr-2" ]
+                     [ text "DropDown" ]
             _ ->
                 button [ class buttonClass
                         , onClick (ActivateLabel index)
@@ -307,43 +315,62 @@ shapeListItem index s =
 
 labelList : Model -> Html Msg
 labelList model =
-    let
-        isLabel lc =
-            case lc.geom of
-                PendingLabel -> True
-                _ -> False
-        labels =
-            List.filter isLabel model.labelClasses
-                |> List.map .label
-                |> List.sort
-    in
-    if List.isEmpty labels then
+    if List.isEmpty model.labelClasses then
         text ""
     else
         ul [ class "list-group" ]
            ([ li [ class "list-group-item header" ] [ text "Labels" ]]
-           ++ (List.map (labelListItem model) labels))
+           ++ (List.map (labelListItem model) model.labelClasses))
 
-labelListItem : Model -> String -> Html Msg
-labelListItem model key =
+labelListItem : Model -> LabelClass -> Html Msg
+labelListItem model label_class =
     let
         img =
             List.head model.pending
                 |> Maybe.withDefault initImage
+        key = label_class.label
         val =
             Dict.get key img.labels
-                |> Maybe.withDefault ""
+                |> Maybe.withDefault (LabelEntry "" Label)
     in
-    li [ class "list-group-item form-inline" ]
-       [ span [ class "btn btn-xs btn-fw mr-2" ]
-              [ text key ]
-       , input [ class "form-control form-control-xs mr-2"
-               , placeholder "value"
-               , value val
-               , onInput (SetImageLabel key)
-               ]
-               []
-       ]
+    case label_class.geom of 
+        PendingLabel ->
+            li [ class "list-group-item form-inline" ]
+            [ span [ class "btn btn-xs btn-fw mr-2" ]
+                    [ text key ]
+            , labelListItemInput key val
+            ]
+        PendingDropDown ->
+            li [ class "list-group-item form-inline" ]
+            [ span [ class "btn btn-xs btn-fw mr-2" ]
+                    [ text key ]
+            , labelListItemDropDown key val model.metaData.dropdown
+            ]
+        _ -> text ""
+
+labelListItemInput : String -> LabelEntry -> Html Msg
+labelListItemInput key val =
+    input [ class "form-control form-control-xs mr-2"
+                , placeholder "value"
+                , value val.value
+                , onInput (SetImageLabel key)
+                ]
+                []
+
+labelListItemDropDown : String -> LabelEntry -> Dict.Dict String (List String) -> Html Msg
+labelListItemDropDown key val dropdown_data =
+    select [ class "form-control form-control-xs mr-2"
+            , onInput (SetImageLabel key)
+            ]
+            (case (Dict.get key dropdown_data) of
+                Nothing -> []
+                Just value ->
+                    (List.map makeOption value)
+            )     
+
+makeOption : String -> Html Msg
+makeOption v = 
+    option [value v] [text v]
 
 maybeConvertButton : Geometry -> Int -> Html Msg
 maybeConvertButton g index =

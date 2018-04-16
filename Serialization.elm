@@ -4,7 +4,7 @@ import Array
 import Dict
 import Json.Encode exposing (Value, list, object, int, string, encode)
 import Json.Decode as Dec
-import Model exposing (Model, Image, Shape, Point, Offset, Geometry(..))
+import Model exposing (Model, Image, Shape, Point, Offset, Geometry(..), LabelEntry, LabelType(..), Document, MetaData)
 
 toJson : Model -> String
 toJson m =
@@ -17,16 +17,35 @@ toString v =
 
 serialized : Model -> Value
 serialized m =
-    list <| List.map serializedImage m.processed
+    object 
+        [ ("data", list <| List.map serializedImage m.processed)
+        , ("meta", object [ ("dropdown", object <| List.map (\(k,v) -> (k, list <| List.map string v))
+                                                <| Dict.toList m.metaData.dropdown)
+                          ]
+          )
+        ]
 
 serializedImage : Image -> Value
 serializedImage i =
     object
         [ ("url",    string i.url)
         , ("shapes", list <| List.map serializedShape i.shapes)
-        , ("labels", object <| List.map (\(k,v) -> (k, string v))
+        , ("labels", object <| List.map (\(k,v) -> (k, serializeLabelEntry v))
                             <| Dict.toList i.labels)
         ]
+
+serializeLabelEntry : LabelEntry -> Value
+serializeLabelEntry v =
+    object
+        [ ("value", string v.value)
+        , ("label_type", serializeLabelType v.label_type)
+        ]
+
+serializeLabelType : LabelType -> Value
+serializeLabelType t =
+    case t of 
+        Label -> string "label"
+        DropDown -> string "dropdown"
 
 serializedShape : Shape -> Value
 serializedShape s =
@@ -49,10 +68,21 @@ serializedGeom g =
         Quad p1 p2 p3 p4 ->
             list <| List.map int [p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y]
 
-
-fromJson : String -> Result String (List Image)
+fromJson : String -> Result String Document
 fromJson s =
-    Dec.decodeString (Dec.list decodeImage) s
+    Dec.decodeString decodeDocument s
+
+decodeDocument : Dec.Decoder Document
+decodeDocument =
+    Dec.map2 Document
+        (Dec.field "data" (Dec.list decodeImage))
+        (Dec.field "meta" decodeMeta)
+
+decodeMeta : Dec.Decoder MetaData
+decodeMeta = 
+    Dec.map MetaData
+        (Dec.field "dropdown" (Dec.dict (Dec.list Dec.string)))
+
 
 decodeImage : Dec.Decoder Image
 decodeImage =
@@ -60,11 +90,23 @@ decodeImage =
         (Dec.field "url"    Dec.string)
         (Dec.field "shapes" (Dec.list decodeShape))
         (Dec.oneOf
-            [ (Dec.field "labels" (Dec.dict Dec.string))
+            [ (Dec.field "labels" (Dec.dict decodeLabelEntry))
             , Dec.succeed Dict.empty
             ]
             )
 
+decodeLabelEntry : Dec.Decoder LabelEntry 
+decodeLabelEntry =
+    Dec.map2 LabelEntry
+        (Dec.field "value" Dec.string)
+        ((Dec.field "label_type" Dec.string) |> Dec.andThen decodeLabelType)
+
+decodeLabelType : String -> Dec.Decoder LabelType
+decodeLabelType val =
+    if val == "label" then
+        Dec.succeed <| Label
+    else
+        Dec.succeed <| DropDown
 
 decodeShape : Dec.Decoder Shape
 decodeShape =
