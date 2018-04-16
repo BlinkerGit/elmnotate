@@ -17,7 +17,13 @@ toString v =
 
 serialized : Model -> Value
 serialized m =
-    list <| List.map serializedImage m.processed
+    object 
+        [ ("data", list <| List.map serializedImage m.processed)
+        , ("meta", object [ ("dropdown", object <| List.map (\(k,v) -> (k, list <| List.map string v))
+                                                <| Dict.toList m.metaData.dropdown)
+                          ]
+          )
+        ]
 
 serializedImage : Image -> Value
 serializedImage i =
