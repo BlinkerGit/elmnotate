@@ -175,7 +175,6 @@ sidebar model =
         [ classList model
         , shapeList model
         , labelList model
-        , text (toString model.labelClasses)
         ]
 
 pGeomLabel : PendingGeometry -> String
