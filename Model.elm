@@ -67,6 +67,11 @@ type alias LabelEntry =
     , label_type: LabelType
     }
     
+type alias Document =
+    { data: (List Image),
+      meta: String
+    }
+    
 type alias Image =
     { url: String
     , shapes: List Shape
@@ -81,7 +86,10 @@ type alias DropDownData = Dict String (List String)
 
 initDropDownData : Dict String (List String)
 initDropDownData = 
-    Dict.fromList [ ("test", ["a1-sauce", "b", "c", "d"]) ]
+    Dict.fromList [ ("test", ["a1-sauce", "b", "c", "d"])
+                  , ("plate state", ["AL", "CO"])
+                  , ("pose", ["dqp", "driver", "rdqp"] ) 
+                  ]
 
 type alias Model =
     { pending: List Image

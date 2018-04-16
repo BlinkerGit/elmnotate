@@ -5,7 +5,7 @@ import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
 import MimeType
 import Task
-import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage, LabelEntry, LabelType(..))
+import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage, LabelEntry, LabelType(..), Document)
 import Canvas exposing (render, loadImage)
 import Serialization exposing (fromJson)
 
@@ -68,10 +68,10 @@ update msg model =
             (model, Cmd.none)
         OnJsonContent (Ok content) ->
             let
-                pending =
+                document =
                     case fromJson content of
                         Ok p_ -> p_
-                        Err _ -> []
+                        Err _ -> Document [] ""
                 toLabelClass shape =
                     let
                         pg =
@@ -81,20 +81,20 @@ update msg model =
                     in
                     (shape.label, pg)
                 labelClasses =
-                    List.concatMap .shapes pending
+                    List.concatMap .shapes document.data
                         |> List.map toLabelClass
                         -- unique labels only
                         |> Dict.fromList
                         |> Dict.toList
                         |> List.map (\(l,g) -> LabelClass l g False)
                 labels =
-                    List.concatMap (.labels >> Dict.toList) pending
+                    List.concatMap (.labels >> Dict.toList) document.data
                         |> Dict.fromList
                         |> Dict.toList
                         |> List.map (\(k,v) -> LabelClass k (pendingTypeFromLabelEntry v) False)
             in
-            ( { model | pending = pending, labelClasses = labelClasses ++ labels }
-            , (loadImageCmd pending)
+            ( { model | pending = document.data, labelClasses = labelClasses ++ labels }
+            , (loadImageCmd document.data)
             )
         OnJsonContent (Err error) ->
             (model, Cmd.none)
