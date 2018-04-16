@@ -338,36 +338,35 @@ labelListItem model label_class =
             li [ class "list-group-item form-inline" ]
             [ span [ class "btn btn-xs btn-fw mr-2" ]
                     [ text key ]
-            , labelListItemInput key val label_class.geom model.metaData.dropdown
+            , labelListItemInput key val
             ]
         PendingDropDown ->
             li [ class "list-group-item form-inline" ]
             [ span [ class "btn btn-xs btn-fw mr-2" ]
                     [ text key ]
-            , labelListItemInput key val label_class.geom model.metaData.dropdown
+            , labelListItemDropDown key val model.metaData.dropdown
             ]
         _ -> text ""
 
-labelListItemInput : String -> LabelEntry -> PendingGeometry -> Dict.Dict String (List String) -> Html Msg
-labelListItemInput key val geom dropdown_data =
-    case geom of
-        PendingLabel ->
-            input [ class "form-control form-control-xs mr-2"
-                        , placeholder "value"
-                        , value val.value
-                        , onInput (SetImageLabel key)
-                        ]
-                        []
-        PendingDropDown ->
-            select [ class "form-control form-control-xs mr-2"
-                   , onInput (SetImageLabel key)
-                   ]
-                   (case (Dict.get key dropdown_data) of
-                        Nothing -> []
-                        Just value ->
-                            (List.map makeOption value)
-                   )     
-        _ -> text ""                                 
+labelListItemInput : String -> LabelEntry -> Html Msg
+labelListItemInput key val =
+    input [ class "form-control form-control-xs mr-2"
+                , placeholder "value"
+                , value val.value
+                , onInput (SetImageLabel key)
+                ]
+                []
+
+labelListItemDropDown : String -> LabelEntry -> Dict.Dict String (List String) -> Html Msg
+labelListItemDropDown key val dropdown_data =
+    select [ class "form-control form-control-xs mr-2"
+            , onInput (SetImageLabel key)
+            ]
+            (case (Dict.get key dropdown_data) of
+                Nothing -> []
+                Just value ->
+                    (List.map makeOption value)
+            )     
 
 makeOption : String -> Html Msg
 makeOption v = 
