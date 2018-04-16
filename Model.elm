@@ -67,11 +67,23 @@ type alias LabelEntry =
     , label_type: LabelType
     }
     
+type alias MetaData = 
+    { dropdown: Dict String (List String)
+    }
+
+initMetaData : MetaData
+initMetaData = 
+    MetaData Dict.empty
+
 type alias Document =
     { data: (List Image),
-      meta: String
+      meta: MetaData
     }
     
+initDocument : Document
+initDocument = 
+    Document [] initMetaData
+
 type alias Image =
     { url: String
     , shapes: List Shape
@@ -83,13 +95,6 @@ initImage =
     Image "" [] Dict.empty
 
 type alias DropDownData = Dict String (List String)
-
-initDropDownData : Dict String (List String)
-initDropDownData = 
-    Dict.fromList [ ("test", ["a1-sauce", "b", "c", "d"])
-                  , ("plate state", ["AL", "CO"])
-                  , ("pose", ["dqp", "driver", "rdqp"] ) 
-                  ]
 
 type alias Model =
     { pending: List Image
@@ -104,7 +109,7 @@ type alias Model =
     , panelSize: Offset
     , scale: Float
     , dropZone: DropZone.Model
-    , dropDownData: DropDownData
+    , metaData: MetaData
     }
 
 init : Model
@@ -122,7 +127,7 @@ init =
         (Offset 2000 2000)
         1.0
         DropZone.init
-        initDropDownData
+        initMetaData
 
 graphics : Model -> Graphics
 graphics m =

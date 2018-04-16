@@ -4,7 +4,7 @@ import Array
 import Dict
 import Json.Encode exposing (Value, list, object, int, string, encode)
 import Json.Decode as Dec
-import Model exposing (Model, Image, Shape, Point, Offset, Geometry(..), LabelEntry, LabelType(..), Document)
+import Model exposing (Model, Image, Shape, Point, Offset, Geometry(..), LabelEntry, LabelType(..), Document, MetaData)
 
 toJson : Model -> String
 toJson m =
@@ -62,7 +62,6 @@ serializedGeom g =
         Quad p1 p2 p3 p4 ->
             list <| List.map int [p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y]
 
-
 fromJson : String -> Result String Document
 fromJson s =
     Dec.decodeString decodeDocument s
@@ -71,7 +70,13 @@ decodeDocument : Dec.Decoder Document
 decodeDocument =
     Dec.map2 Document
         (Dec.field "data" (Dec.list decodeImage))
-        (Dec.field "meta" Dec.string)
+        (Dec.field "meta" decodeMeta)
+
+decodeMeta : Dec.Decoder MetaData
+decodeMeta = 
+    Dec.map MetaData
+        (Dec.field "dropdown" (Dec.dict (Dec.list Dec.string)))
+
 
 decodeImage : Dec.Decoder Image
 decodeImage =

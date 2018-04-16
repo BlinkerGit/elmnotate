@@ -5,7 +5,7 @@ import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
 import MimeType
 import Task
-import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage, LabelEntry, LabelType(..), Document)
+import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage, LabelEntry, LabelType(..), initDocument)
 import Canvas exposing (render, loadImage)
 import Serialization exposing (fromJson)
 
@@ -71,7 +71,7 @@ update msg model =
                 document =
                     case fromJson content of
                         Ok p_ -> p_
-                        Err _ -> Document [] ""
+                        Err _ -> initDocument
                 toLabelClass shape =
                     let
                         pg =
@@ -93,7 +93,7 @@ update msg model =
                         |> Dict.toList
                         |> List.map (\(k,v) -> LabelClass k (pendingTypeFromLabelEntry v) False)
             in
-            ( { model | pending = document.data, labelClasses = labelClasses ++ labels }
+            ( { model | pending = document.data, labelClasses = labelClasses ++ labels, metaData = document.meta }
             , (loadImageCmd document.data)
             )
         OnJsonContent (Err error) ->

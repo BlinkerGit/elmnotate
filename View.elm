@@ -339,13 +339,13 @@ labelListItem model label_class =
             li [ class "list-group-item form-inline" ]
             [ span [ class "btn btn-xs btn-fw mr-2" ]
                     [ text key ]
-            , labelListItemInput key val label_class.geom model.dropDownData
+            , labelListItemInput key val label_class.geom model.metaData.dropdown
             ]
         PendingDropDown ->
             li [ class "list-group-item form-inline" ]
             [ span [ class "btn btn-xs btn-fw mr-2" ]
                     [ text key ]
-            , labelListItemInput key val label_class.geom model.dropDownData
+            , labelListItemInput key val label_class.geom model.metaData.dropdown
             ]
         _ -> text ""
 
