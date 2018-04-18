@@ -182,7 +182,7 @@ pGeomLabel pg =
     case pg of
         NoShape       -> "Shape"
         PendingLabel  -> "Label"
-        PendingDropDown  -> "DropDown"
+        PendingDropDown  -> "Select"
         PendingRect _ -> "Rect"
         PendingQuad _ -> "Quad"
 
@@ -225,7 +225,7 @@ classList model =
                            , a [ class "dropdown-item"
                                , onClick SelectDropDown
                                ]
-                               [ text "DropDown" ]
+                               [ text "Select" ]
                            ]
                      ]
                 , input [ class "form-control form-control-xs mr-2"
@@ -258,7 +258,7 @@ classListItem index lc =
                      [ text "Label" ]
             PendingDropDown ->
                 span [ class "btn btn-xs btn-fw mr-2" ]
-                     [ text "DropDown" ]
+                     [ text "Select" ]
             _ ->
                 button [ class buttonClass
                         , onClick (ActivateLabel index)
