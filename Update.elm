@@ -36,6 +36,10 @@ type Msg
     | AddLabelClass
     | ActivateLabel Int
     | ActivateShape Int
+    | EditSelectOptions String
+    | CancelDialog
+    | SaveEditingSelect
+    | UpdateSelectOptions String
     | NavPrev
     | NavNext
 
@@ -217,7 +221,6 @@ update msg model =
                             Just p -> { model | dragPoint = Nothing }
                     else
                         model
-
             in
             ( updated
             , render <| graphics updated
@@ -393,6 +396,52 @@ update msg model =
                         x :: xs -> { x | shapes = shapes } :: xs
             in
             ( { model | pending = p }, Cmd.none )
+        EditSelectOptions name ->
+            let
+                optionsString =
+                    Dict.get name model.metaData.dropdown
+                    |> Maybe.withDefault []
+                    |> String.join "\n"
+                updated =
+                    { model
+                    | editingSelectName = name
+                    , editingSelectOptions = optionsString
+                    }
+            in
+            ( updated, Cmd.none )
+        CancelDialog ->
+            let
+                updated =
+                    { model
+                    | editingSelectName = ""
+                    , editingSelectOptions = ""
+                    }
+            in
+            ( updated, Cmd.none )
+        SaveEditingSelect ->
+            let
+                optionList =
+                    String.split "\n" model.editingSelectOptions
+                    |> List.map String.trim
+                    |> List.filter (not << String.isEmpty)
+                m =
+                    model.metaData
+                d =
+                    m.dropdown
+                metaData =
+                    { m
+                    | dropdown = Dict.insert model.editingSelectName optionList d
+                    }
+                updated =
+                    { model
+                    | metaData = metaData
+                    , editingSelectName = ""
+                    , editingSelectOptions = ""
+                    }
+            in
+            ( updated, Cmd.none )
+        UpdateSelectOptions options ->
+            ( { model | editingSelectOptions = options }, Cmd.none )
         NavPrev ->
             navigateToPrevious model
         NavNext ->

@@ -110,6 +110,8 @@ type alias Model =
     , scale: Float
     , dropZone: DropZone.Model
     , metaData: MetaData
+    , editingSelectName: String
+    , editingSelectOptions: String
     }
 
 init : Model
@@ -128,6 +130,8 @@ init =
         1.0
         DropZone.init
         initMetaData
+        ""
+        ""
 
 graphics : Model -> Graphics
 graphics m =
