@@ -1,10 +1,13 @@
 module View exposing (view)
 
+import Dialog
 import Dict
 import DropZone exposing (DropZoneMessage, dropZoneEventHandlers)
 import FileReader exposing (NativeFile)
-import Html exposing (Html, div, nav, span, text, a, canvas, button, h6, table, tbody, tr, td, input, hr, ul, li, br, select, option)
-import Html.Attributes exposing (class, type_, href, downloadAs, style, disabled, id, width, height, value, placeholder)
+import Html exposing (Html, a, br, button, canvas, div, h6, hr, input, li, nav, option, select, span,
+    table, tbody, td, text, textarea, tr, ul)
+import Html.Attributes exposing (class, disabled, downloadAs, height, href, id, placeholder, rows,
+    style, type_, value, width)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (encodeUri)
 import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass, initImage, LabelEntry, LabelType(..))
@@ -21,6 +24,7 @@ view model =
               ( body model )
         , div [ id "footer" ]
               [ footer model ]
+        , maybeShowModal model
         ]
 
 
@@ -62,6 +66,52 @@ body model =
             [complete model]
         (_, _) ->
             inProcess model
+
+maybeShowModal : Model -> Html Msg
+maybeShowModal model =
+    let
+        shouldDisplay =
+            not (String.isEmpty model.editingSelectName)
+    in
+    Dialog.view
+        (if shouldDisplay then
+            Just (dialogConfig model)
+            else
+            Nothing
+        )
+
+dialogConfig : Model -> Dialog.Config Msg
+dialogConfig model =
+    let
+        headerText =
+            "Editing options for select '" ++ model.editingSelectName ++ "'"
+
+    in
+    { closeMessage = Just CancelDialog
+    , containerClass = Nothing
+    , header = Just (h6 [ style [("position", "absolute")] ] [ text headerText ])
+    , body = Just (optionEditor model)
+    , footer =
+        Just
+            (button
+                [ class "btn btn-primary"
+                , onClick SaveEditingSelect
+                ]
+                [ text "OK" ]
+            )
+    }
+
+optionEditor : Model -> Html Msg
+optionEditor model =
+    div []
+        [ text "Enter options, one per line:"
+        , textarea [ class "form-control"
+                   , rows 10
+                   , value model.editingSelectOptions
+                   , onInput UpdateSelectOptions
+                   ]
+                   []
+        ]
 
 getStarted : Model -> Html Msg
 getStarted model =
@@ -182,7 +232,7 @@ pGeomLabel pg =
     case pg of
         NoShape       -> "Shape"
         PendingLabel  -> "Label"
-        PendingDropDown  -> "DropDown"
+        PendingDropDown  -> "Select"
         PendingRect _ -> "Rect"
         PendingQuad _ -> "Quad"
 
@@ -225,7 +275,7 @@ classList model =
                            , a [ class "dropdown-item"
                                , onClick SelectDropDown
                                ]
-                               [ text "DropDown" ]
+                               [ text "Select" ]
                            ]
                      ]
                 , input [ class "form-control form-control-xs mr-2"
@@ -257,13 +307,15 @@ classListItem index lc =
                 span [ class "btn btn-xs btn-fw mr-2" ]
                      [ text "Label" ]
             PendingDropDown ->
-                span [ class "btn btn-xs btn-fw mr-2" ]
-                     [ text "DropDown" ]
+                button [ class buttonClass
+                       , onClick (EditSelectOptions lc.label)
+                       ]
+                       [ text "Select" ]
             _ ->
                 button [ class buttonClass
-                        , onClick (ActivateLabel index)
-                        ]
-                        [ text (pGeomLabel lc.geom) ]
+                       , onClick (ActivateLabel index)
+                       ]
+                       [ text (pGeomLabel lc.geom) ]
        , input [ class "form-control form-control-xs mr-2"
                , placeholder "label"
                , disabled True

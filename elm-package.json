@@ -16,6 +16,7 @@
         "elm-lang/keyboard": "1.0.0 <= v < 2.0.0",
         "elm-lang/mouse": "1.0.0 <= v < 2.0.0",
         "elm-lang/window": "1.0.0 <= v < 2.0.0",
+        "krisajenkins/elm-dialog": "4.0.3 <= v < 5.0.0",
         "mbr/elm-mouse-events": "1.0.4 <= v < 2.0.0",
         "simonh1000/file-reader": "1.0.0 <= v < 2.0.0"
     },
