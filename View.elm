@@ -7,10 +7,10 @@ import FileReader exposing (NativeFile)
 import Html exposing (Html, a, br, button, canvas, div, h6, hr, input, li, nav, option, select, span,
     table, tbody, td, text, textarea, tr, ul)
 import Html.Attributes exposing (class, disabled, downloadAs, height, href, id, placeholder, rows,
-    style, type_, value, width)
+    selected, style, type_, value, width)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (encodeUri)
-import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass, initImage, LabelEntry, LabelType(..))
+import Model exposing (Model, Image, PendingGeometry(..), Shape, Geometry(..), LabelClass, initImage, LabelType(..))
 import Update exposing (Msg(..))
 import Serialization
 
@@ -383,9 +383,9 @@ labelListItem model label_class =
         key = label_class.label
         val =
             Dict.get key img.labels
-                |> Maybe.withDefault (LabelEntry "" Label)
+                |> Maybe.withDefault ""
     in
-    case label_class.geom of 
+    case label_class.geom of
         PendingLabel ->
             li [ class "list-group-item form-inline" ]
             [ span [ class "btn btn-xs btn-fw mr-2" ]
@@ -400,29 +400,32 @@ labelListItem model label_class =
             ]
         _ -> text ""
 
-labelListItemInput : String -> LabelEntry -> Html Msg
+labelListItemInput : String -> String -> Html Msg
 labelListItemInput key val =
     input [ class "form-control form-control-xs mr-2"
                 , placeholder "value"
-                , value val.value
+                , value val
                 , onInput (SetImageLabel key)
                 ]
                 []
 
-labelListItemDropDown : String -> LabelEntry -> Dict.Dict String (List String) -> Html Msg
-labelListItemDropDown key val dropdown_data =
+labelListItemDropDown : String -> String -> Dict.Dict String (List String) -> Html Msg
+labelListItemDropDown key currentValue dropdown_data =
     select [ class "form-control form-control-xs mr-2"
             , onInput (SetImageLabel key)
             ]
             (case (Dict.get key dropdown_data) of
                 Nothing -> []
                 Just value ->
-                    (List.map makeOption value)
-            )     
+                    (List.map (makeOption currentValue) value)
+            )
 
-makeOption : String -> Html Msg
-makeOption v = 
-    option [value v] [text v]
+makeOption : String -> String -> Html Msg
+makeOption currentValue optionValue =
+    option [ value optionValue
+           , selected (currentValue == optionValue)
+           ]
+           [text optionValue]
 
 maybeConvertButton : Geometry -> Int -> Html Msg
 maybeConvertButton g index =

@@ -62,11 +62,6 @@ type LabelType
     = Label
     | DropDown
 
-type alias LabelEntry =
-    { value: String
-    , label_type: LabelType
-    }
-    
 type alias MetaData = 
     { dropdown: Dict String (List String)
     }
@@ -76,7 +71,7 @@ initMetaData =
     MetaData Dict.empty
 
 type alias Document =
-    { data: (List Image),
+    { data: List Image,
       meta: MetaData
     }
     
@@ -87,7 +82,7 @@ initDocument =
 type alias Image =
     { url: String
     , shapes: List Shape
-    , labels: Dict String LabelEntry
+    , labels: Dict String String
     }
 
 initImage : Image

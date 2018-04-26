@@ -1,11 +1,11 @@
 module Update exposing (..)
 
-import Dict
+import Dict exposing (Dict)
 import DropZone exposing (DropZoneMessage(..))
 import FileReader exposing (NativeFile)
 import MimeType
 import Task
-import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage, LabelEntry, LabelType(..), initDocument)
+import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage, LabelType(..), initDocument)
 import Canvas exposing (render, loadImage)
 import Serialization exposing (fromJson)
 
@@ -95,7 +95,7 @@ update msg model =
                     List.concatMap (.labels >> Dict.toList) document.data
                         |> Dict.fromList
                         |> Dict.toList
-                        |> List.map (\(k,v) -> LabelClass k (pendingTypeFromLabelEntry v) False)
+                        |> List.map (\(k,v) -> LabelClass k (pendingTypeFromKey k document.meta.dropdown) False)
             in
             ( { model | pending = document.data, labelClasses = labelClasses ++ labels, metaData = document.meta }
             , (loadImageCmd document.data)
@@ -336,7 +336,7 @@ update msg model =
                 img_ =
                     currentImage model
                 img =
-                    { img_ | labels = Dict.insert key (LabelEntry value Label) img_.labels }
+                    { img_ | labels = Dict.insert key value img_.labels }
                 updated =
                     case model.pending of
                         [] -> model
@@ -348,7 +348,7 @@ update msg model =
                 img_ =
                     currentImage model
                 img =
-                    { img_ | labels = Dict.insert key (LabelEntry value DropDown) img_.labels }
+                    { img_ | labels = Dict.insert key value img_.labels }
                 updated =
                     case model.pending of
                         [] -> model
@@ -447,11 +447,11 @@ update msg model =
         NavNext ->
             navigateToNext model
 
-pendingTypeFromLabelEntry : LabelEntry -> PendingGeometry
-pendingTypeFromLabelEntry entry =
-    case entry.label_type of 
-        Label -> PendingLabel
-        DropDown -> PendingDropDown
+pendingTypeFromKey : String -> Dict String (List String) -> PendingGeometry
+pendingTypeFromKey key dropdowns =
+    case Dict.get key dropdowns of
+        Nothing -> PendingLabel
+        Just _ -> PendingDropDown
 
 navigateToPrevious : Model -> (Model, Cmd Msg)
 navigateToPrevious model =
