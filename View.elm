@@ -416,8 +416,8 @@ labelListItemDropDown key currentValue dropdown_data =
             ]
             (case (Dict.get key dropdown_data) of
                 Nothing -> []
-                Just value ->
-                    (List.map (makeOption currentValue) value)
+                Just optionList ->
+                    ([makeOption currentValue ""] ++ (List.map (makeOption currentValue) optionList))
             )
 
 makeOption : String -> String -> Html Msg
