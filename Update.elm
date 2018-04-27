@@ -18,7 +18,6 @@ type Msg
     | CancelReset
     | ClientDims Offset Offset
     | WindowResized Offset
-    | KeyPressed Char
     | MouseMoved Point
     | MouseDown Point
     | MouseUp Point
@@ -146,14 +145,6 @@ update msg model =
             ( updated
             , render <| graphics updated
             )
-        KeyPressed char ->
-            case char of
-                'n' ->
-                    navigateToNext model
-                'p' ->
-                    navigateToPrevious model
-                _ ->
-                    (model, Cmd.none)
         MouseMoved pt ->
             let
                 canvasPoint =

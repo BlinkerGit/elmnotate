@@ -68,6 +68,24 @@ elmnotate.ports.loadImage.subscribe(function(url) {
     });
 });
 
+// add keyboard navigation listener
+document.addEventListener('keyup', function(event) {
+    var focused = document.activeElement;
+    if (!focused || focused === document.body)
+        focused = null;
+
+    if (!focused) {
+        if (event.which === 78) {
+            // [n]ext
+            elmnotate.ports.navNext.send([]);
+        }
+        if (event.which === 80) {
+            // [p]revious
+            elmnotate.ports.navPrev.send([]);
+        }
+    }
+});
+
 function getImageSize(url, cb) {
     var image = new Image();
     image.onload = function() {

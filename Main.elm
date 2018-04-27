@@ -1,18 +1,16 @@
 module Main exposing (..)
 
 import Array
-import Char
 import Html exposing (program)
 import Json.Decode exposing (decodeValue, decodeString, array, int)
 import Json.Encode exposing (Value)
-import Keyboard
 import Mouse
 import Window
 
 import Model exposing (Model, Point, Offset)
 import View exposing (view)
 import Update exposing (Msg(..), update)
-import Canvas exposing (clientDims)
+import Canvas exposing (clientDims, navPrev, navNext)
 
 init : (Model, Cmd Msg)
 init =
@@ -23,7 +21,8 @@ subscriptions model =
     Sub.batch
         [ clientDims (decodeClientDims)
         , Window.resizes (\{height, width} -> WindowResized (Offset width height))
-        , Keyboard.presses (\code -> KeyPressed (Char.fromCode code))
+        , navNext (\_ -> NavNext)
+        , navPrev (\_ -> NavPrev)
         , Mouse.moves (\{x, y} -> MouseMoved (Point x y))
         , Mouse.downs (\{x, y} -> MouseDown (Point x y))
         , Mouse.ups (\{x, y} -> MouseUp (Point x y))
