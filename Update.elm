@@ -659,13 +659,15 @@ loadImageCmd pending =
 uploadHandler : NativeFile -> Cmd Msg
 uploadHandler file =
     let
+        mimeType =
+            file.mimeType
+                |> Maybe.andThen (\t -> Just (MimeType.toString t))
+                |> Maybe.withDefault "UNKNOWN"
         cmd =
-            case file.mimeType of
-                Nothing -> OnTextContent
-                Just t ->
-                    case MimeType.toString t of
-                        "application/json" -> OnJsonContent
-                        _ -> OnTextContent
+            if mimeType == "application/json" || String.endsWith ".json" file.name then
+                OnJsonContent
+            else
+                OnTextContent
     in
     FileReader.readAsTextFile file.blob
         |> Task.attempt cmd
