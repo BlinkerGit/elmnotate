@@ -1,4 +1,6 @@
+/.cache
+/dist
 elm-stuff
 elm.js
-node_modules
 elmnotate-darwin-x64
+node_modules
