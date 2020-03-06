@@ -1,25 +1,36 @@
 {
   "name": "elmnotate",
-  "version": "1.0.1",
   "description": "",
-  "main": "main.js",
-  "scripts": {
-    "elm:make": "elm make Main.elm --output elm.js || true",
-    "elm:watch": "chokidar '**/*.elm' -c 'npm run elm:make'",
-    "start": "NODE_ENV=${NODE_ENV-development} electron main.js",
-    "watch": "npm run elm:watch & npm run start & wait",
-    "package": "electron-packager --electron-version=1.8.6 .",
-    "package-mac": "electron-packager --electron-version=1.8.6 --platform=darwin .",
-    "package-win": "electron-packager --electron-version=1.8.6 --platform=win32 .",
-    "package-linux": "electron-packager --electron-version=1.8.6 --platform=linux ."
-  },
+  "version": "1.0.1",
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "chokidar-cli": "^1.2.0",
-    "electron-packager": "^12.0.0"
+  "main": "main.js",
+  "scripts": {
+    "clean": "rm -rf dist/*",
+    "dist": "electron-builder",
+    "elm:make": "npm run clean && parcel build index.html --public-url ./",
+    "elm:watch": "npm run clean && parcel index.html --public-url ./",
+    "pack": "npm run elm:make && electron-builder --dir",
+    "start": "wait-on dist/index.html && NODE_ENV=${NODE_ENV-development} electron main.js",
+    "watch": "concurrently -p '{name}:' -k -n \"📦,⚛️\" \"npm run elm:watch\" \"npm run start\""
+  },
+  "build": {
+    "appId": "com.blinker.elmnotate",
+    "files": [
+      "main.js",
+      "dist/*"
+    ]
   },
   "dependencies": {
     "bootstrap": "^4.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^5.1.0",
+    "electron": "^8.1.0",
+    "electron-builder": "^22.4.0",
+    "elm-hot": "^1.1.4",
+    "node-elm-compiler": "^5.0.4",
+    "parcel": "^1.12.4",
+    "wait-on": "^4.0.1"
   }
 }

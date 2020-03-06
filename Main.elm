@@ -1,32 +1,25 @@
-module Main exposing (..)
+module Main exposing (main)
 
 import Array
-import Html exposing (program)
-import Json.Decode exposing (decodeValue, decodeString, array, int)
+import Browser
+import Browser.Events as BrowserEvents
+import Canvas exposing (clientDims, navNext, navPrev)
+import Json.Decode exposing (array, decodeValue, int)
 import Json.Encode exposing (Value)
-import Mouse
-import Window
-
-import Model exposing (Model, Point, Offset)
-import View exposing (view)
+import Model exposing (Model, Offset)
 import Update exposing (Msg(..), update)
-import Canvas exposing (clientDims, navPrev, navNext)
+import View exposing (view)
 
-init : (Model, Cmd Msg)
-init =
-    (Model.init, Cmd.none)
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.batch
-        [ clientDims (decodeClientDims)
-        , Window.resizes (\{height, width} -> WindowResized (Offset width height))
+        [ clientDims decodeClientDims
+        , BrowserEvents.onResize (\width height -> WindowResized (Offset width height))
         , navNext (\_ -> NavNext)
         , navPrev (\_ -> NavPrev)
-        , Mouse.moves (\{x, y} -> MouseMoved (Point x y))
-        , Mouse.downs (\{x, y} -> MouseDown (Point x y))
-        , Mouse.ups (\{x, y} -> MouseUp (Point x y))
         ]
+
 
 decodeClientDims : Value -> Msg
 decodeClientDims value =
@@ -39,26 +32,32 @@ decodeClientDims value =
             let
                 imgW =
                     Array.get 0 dims |> Maybe.withDefault -1
+
                 imgH =
                     Array.get 1 dims |> Maybe.withDefault -1
+
                 imgSize =
                     Offset imgW imgH
+
                 pnlW =
                     Array.get 2 dims |> Maybe.withDefault -1
+
                 pnlH =
                     Array.get 3 dims |> Maybe.withDefault -1
+
                 pnlSize =
                     Offset pnlW pnlH
             in
             ClientDims imgSize pnlSize
+
         Err _ ->
             NoOp
 
 
-main : Program Never Model Msg
+main : Program () Model Msg
 main =
-    program
-        { init = init
+    Browser.element
+        { init = \_ -> ( Model.init, Cmd.none )
         , view = view
         , update = update
         , subscriptions = subscriptions

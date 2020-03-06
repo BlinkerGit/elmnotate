@@ -1,26 +1,44 @@
-module Update exposing (..)
+module Update exposing (Msg(..), update)
 
+import Canvas exposing (loadImage, render)
 import Dict exposing (Dict)
-import DropZone exposing (DropZoneMessage(..))
-import FileReader exposing (NativeFile)
-import MimeType
-import Task
-import Model exposing (Model, Image, Point, Offset, LabelClass, Shape, Geometry(..), PendingGeometry(..), graphics, unscalePoint, FocusPoint(..), initImage, LabelType(..), initDocument)
-import Canvas exposing (render, loadImage)
+import File exposing (File)
+import File.Download as Download
+import Model
+    exposing
+        ( FocusPoint(..)
+        , Geometry(..)
+        , Image
+        , LabelClass
+        , LabelType(..)
+        , Model
+        , Offset
+        , PendingGeometry(..)
+        , Point
+        , Shape
+        , graphics
+        , initDocument
+        , initImage
+        , unscalePoint
+        )
 import Serialization exposing (fromJson)
+import Set
+import Task
+
 
 type Msg
     = NoOp
-    | DnD (DropZoneMessage (List NativeFile))
-    | OnTextContent (Result FileReader.Error String)
-    | OnJsonContent (Result FileReader.Error String)
+    | FileDragEnter
+    | FileDragLeave
+    | FileDrop File (List File)
+    | FileLoaded String String
     | RequestReset
     | CancelReset
     | ClientDims Offset Offset
     | WindowResized Offset
-    | MouseMoved Point
-    | MouseDown Point
-    | MouseUp Point
+    | MouseDown ( Float, Float )
+    | MouseMoved ( Float, Float )
+    | MouseUp ( Float, Float )
     | DeleteShape Int
     | DeleteClass Int
     | ConvertRect Int
@@ -39,68 +57,44 @@ type Msg
     | CancelDialog
     | SaveEditingSelect
     | UpdateSelectOptions String
+    | DownloadData
     | NavPrev
     | NavNext
 
-update : Msg -> Model -> (Model, Cmd Msg)
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NoOp ->
-            (model, Cmd.none)
-        DnD (Drop files) ->
-            ( { model | dropZone = DropZone.update (Drop files) model.dropZone }
-            , Cmd.batch <| List.map uploadHandler files
+            ( model, Cmd.none )
+
+        FileDragEnter ->
+            ( { model | draggingFiles = True }, Cmd.none )
+
+        FileDragLeave ->
+            ( { model | draggingFiles = False }, Cmd.none )
+
+        FileDrop file files ->
+            ( { model
+                | droppedFiles = file :: files
+                , draggingFiles = False
+              }
+            , Task.perform (FileLoaded <| File.name file) (File.toString file)
             )
-        DnD msg ->
-            (model, Cmd.none)
-        OnTextContent (Ok content) ->
+
+        FileLoaded filename content ->
             let
-                urls =
-                    String.trim content
-                        |> String.split("\n")
-                new_images =
-                    List.map (\u -> { initImage | url = u }) urls
-                pending =
-                    new_images ++ model.pending
-                -- TODO dedupe?
+                newModel =
+                    loadPendingImages filename
+                        content
+                        { model
+                            | droppedFiles = []
+                        }
             in
-            ( { model | pending = pending }
-            , (loadImageCmd pending)
+            ( newModel
+            , loadImageCmd newModel.pending
             )
-        OnTextContent (Err error) ->
-            (model, Cmd.none)
-        OnJsonContent (Ok content) ->
-            let
-                document =
-                    case fromJson content of
-                        Ok p_ -> p_
-                        Err _ -> initDocument
-                toLabelClass shape =
-                    let
-                        pg =
-                            case shape.geom of
-                                Rect _ _     -> PendingRect []
-                                Quad _ _ _ _ -> PendingQuad []
-                    in
-                    (shape.label, pg)
-                labelClasses =
-                    List.concatMap .shapes document.data
-                        |> List.map toLabelClass
-                        -- unique labels only
-                        |> Dict.fromList
-                        |> Dict.toList
-                        |> List.map (\(l,g) -> LabelClass l g False)
-                labels =
-                    List.concatMap (.labels >> Dict.toList) document.data
-                        |> Dict.fromList
-                        |> Dict.toList
-                        |> List.map (\(k,v) -> LabelClass k (pendingTypeFromKey k document.meta.dropdown) False)
-            in
-            ( { model | pending = document.data, labelClasses = labelClasses ++ labels, metaData = document.meta }
-            , (loadImageCmd document.data)
-            )
-        OnJsonContent (Err error) ->
-            (model, Cmd.none)
+
         RequestReset ->
             let
                 updated =
@@ -110,86 +104,112 @@ update msg model =
                                 Model.init
                         in
                         { i | labelClasses = model.labelClasses }
+
                     else
                         { model | resetRequested = True }
             in
-            (updated, Cmd.none)
+            ( updated, Cmd.none )
+
         CancelReset ->
-            ({ model | resetRequested = False }, Cmd.none)
+            ( { model | resetRequested = False }, Cmd.none )
+
         ClientDims imgSize pnlSize ->
             let
                 ratioW =
-                    (toFloat pnlSize.w) / (toFloat imgSize.w)
+                    toFloat pnlSize.w / toFloat imgSize.w
+
                 ratioH =
-                    (toFloat pnlSize.h) / (toFloat imgSize.h)
+                    toFloat pnlSize.h / toFloat imgSize.h
+
                 scale =
-                    List.minimum [ratioW, ratioH] |> Maybe.withDefault 1.0
-                updated = { model | imageSize = imgSize , panelSize = pnlSize , scale = scale }
+                    List.minimum [ ratioW, ratioH ] |> Maybe.withDefault 1.0
+
+                updated =
+                    { model | imageSize = imgSize, panelSize = pnlSize, scale = scale }
             in
             ( updated
             , render <| graphics updated
             )
+
         WindowResized offset ->
             let
                 pnlSize =
                     -- subtract sidebar width, header height
                     Offset (offset.w - 300) (offset.h - 100)
+
                 ratioW =
-                    (toFloat pnlSize.w) / (toFloat model.imageSize.w)
+                    toFloat pnlSize.w / toFloat model.imageSize.w
+
                 ratioH =
-                    (toFloat pnlSize.h) / (toFloat model.imageSize.h)
+                    toFloat pnlSize.h / toFloat model.imageSize.h
+
                 scale =
-                    List.minimum [ratioW, ratioH] |> Maybe.withDefault 1.0
-                updated = { model | panelSize = pnlSize , scale = scale }
+                    List.minimum [ ratioW, ratioH ] |> Maybe.withDefault 1.0
+
+                updated =
+                    { model | panelSize = pnlSize, scale = scale }
             in
             ( updated
             , render <| graphics updated
             )
-        MouseMoved pt ->
+
+        MouseMoved ( mx, my ) ->
             let
                 canvasPoint =
-                    -- subtract header height
-                    Point pt.x (pt.y - 50)
+                    Point (round mx) (round my)
+
                 point =
                     unscalePoint model.scale canvasPoint
+
                 img =
                     currentImage model
+
                 indexedShapes =
                     img.shapes
-                        |> List.map (.geom)
-                        |> List.indexedMap (,)
-                keepNear (_, _, {x, y}) =
+                        |> List.map .geom
+                        |> List.indexedMap (\a b -> ( a, b ))
+
+                keepNear ( _, _, { x, y } ) =
                     (abs (x - point.x) < 5) && (abs (y - point.y) < 5)
+
                 indexedPoints =
                     indexedShapes
-                        |> List.concatMap (\(gi,g) ->
-                            case g of
-                                Rect p o ->
-                                    [ (gi, 0, p)
-                                    , (gi, 1, Point (p.x + o.w) (p.y + o.h))
-                                    ]
-                                Quad tl tr br bl ->
-                                    [ (gi, 0, tl)
-                                    , (gi, 1, tr)
-                                    , (gi, 2, br)
-                                    , (gi, 3, bl)
-                                    ]
-                        )
+                        |> List.concatMap
+                            (\( gi, g ) ->
+                                case g of
+                                    Rect p o ->
+                                        [ ( gi, 0, p )
+                                        , ( gi, 1, Point (p.x + o.w) (p.y + o.h) )
+                                        ]
+
+                                    Quad tl tr br bl ->
+                                        [ ( gi, 0, tl )
+                                        , ( gi, 1, tr )
+                                        , ( gi, 2, br )
+                                        , ( gi, 3, bl )
+                                        ]
+                            )
                         |> List.filter keepNear
+
                 hover_ =
                     List.head indexedPoints
-                        |> Maybe.andThen (\(gi,pi,_) -> Just (FocusPoint gi pi))
+                        |> Maybe.andThen (\( gi, pi, _ ) -> Just (FocusPoint gi pi))
+
                 pending =
                     case model.pending of
-                        [] -> []
+                        [] ->
+                            []
+
                         x :: xs ->
                             moveDraggingPoint model.dragPoint point x :: xs
+
                 updated =
                     { model | hoverPoint = hover_, pending = pending }
             in
             ( updated
             , render <| graphics updated
             )
+
         MouseDown point ->
             let
                 updated =
@@ -198,174 +218,232 @@ update msg model =
             ( updated
             , render <| graphics updated
             )
-        MouseUp pt ->
+
+        MouseUp ( x, y ) ->
             let
                 canvasPoint =
-                    -- subtract header height
-                    Point pt.x (pt.y - 50)
+                    Point (round x) (round y)
+
                 point =
                     unscalePoint model.scale canvasPoint
+
                 updated =
                     if inCanvas canvasPoint model.panelSize then
                         case model.dragPoint of
-                            Nothing -> addPoint model point
-                            Just p -> { model | dragPoint = Nothing }
+                            Nothing ->
+                                addPoint model point
+
+                            Just _ ->
+                                { model | dragPoint = Nothing }
+
                     else
                         model
             in
             ( updated
             , render <| graphics updated
             )
+
         DeleteShape index ->
             let
                 img_ =
                     currentImage model
+
                 h =
                     List.take index img_.shapes
+
                 t =
                     List.drop (index + 1) img_.shapes
+
                 s =
                     h ++ t
+
                 img =
                     { img_ | shapes = s }
+
                 pending =
-                    img :: (List.drop 1 model.pending)
+                    img :: List.drop 1 model.pending
+
                 updated =
                     { model | pending = pending }
             in
             ( updated
             , render <| graphics updated
             )
+
         DeleteClass index ->
             let
                 h =
                     List.take index model.labelClasses
+
                 t =
                     List.drop (index + 1) model.labelClasses
+
                 lc =
                     h ++ t
+
                 updated =
                     { model | labelClasses = lc }
             in
             ( updated
             , Cmd.none
             )
+
         ConvertRect index ->
             let
                 img_ =
                     currentImage model
+
                 h =
                     List.take index img_.shapes
+
                 s_ =
                     List.drop index img_.shapes
                         |> List.head
                         |> Maybe.withDefault (Shape "" (Rect (Point 0 0) (Offset 0 0)) False)
+
                 s =
                     { s_ | geom = toQuad s_.geom }
+
                 t =
                     List.drop (index + 1) img_.shapes
+
                 img =
-                    { img_ | shapes = h ++ [s] ++ t }
+                    { img_ | shapes = h ++ (s :: t) }
+
                 pending =
-                    img :: (List.drop 1 model.pending)
+                    img :: List.drop 1 model.pending
+
                 updated =
                     { model | pending = pending }
             in
             ( updated
             , Cmd.none
             )
+
         ToggleGeomMenu ->
             let
                 p_ =
                     model.pendingClass
+
                 p =
                     { p_ | active = not p_.active }
             in
             ( { model | pendingClass = p }, Cmd.none )
+
         SelectQuad ->
             let
                 p_ =
                     model.pendingClass
+
                 p =
-                    { p_ | active = False, geom = (PendingQuad []) }
+                    { p_ | active = False, geom = PendingQuad [] }
             in
             ( { model | pendingClass = p }, Cmd.none )
+
         SelectRect ->
             let
                 p_ =
                     model.pendingClass
+
                 p =
-                    { p_ | active = False, geom = (PendingRect []) }
+                    { p_ | active = False, geom = PendingRect [] }
             in
             ( { model | pendingClass = p }, Cmd.none )
+
         SelectLabel ->
             let
                 p_ =
                     model.pendingClass
+
                 p =
                     { p_ | active = False, geom = PendingLabel }
             in
             ( { model | pendingClass = p }, Cmd.none )
+
         SelectDropDown ->
             let
                 p_ =
                     model.pendingClass
+
                 p =
                     { p_ | active = False, geom = PendingDropDown }
             in
             ( { model | pendingClass = p }, Cmd.none )
+
         SetLabelClassLabel l ->
             let
                 p_ =
                     model.pendingClass
+
                 p =
                     { p_ | label = l }
             in
             ( { model | pendingClass = p }, Cmd.none )
+
         SetImageLabel key value ->
             let
                 img_ =
                     currentImage model
+
                 img =
                     { img_ | labels = Dict.insert key value img_.labels }
+
                 updated =
                     case model.pending of
-                        [] -> model
-                        x :: xs -> { model | pending = img :: xs }
+                        [] ->
+                            model
+
+                        _ :: xs ->
+                            { model | pending = img :: xs }
             in
             ( updated, Cmd.none )
+
         SetImageDropDown key value ->
             let
                 img_ =
                     currentImage model
+
                 img =
                     { img_ | labels = Dict.insert key value img_.labels }
+
                 updated =
                     case model.pending of
-                        [] -> model
-                        x :: xs -> { model | pending = img :: xs }
+                        [] ->
+                            model
+
+                        _ :: xs ->
+                            { model | pending = img :: xs }
             in
             ( updated, Cmd.none )
+
         AddLabelClass ->
             let
                 c =
-                    model.labelClasses ++ [model.pendingClass]
+                    model.labelClasses ++ [ model.pendingClass ]
+
                 p =
                     LabelClass "" NoShape False
             in
             ( { model | labelClasses = c, pendingClass = p }, Cmd.none )
+
         ActivateLabel i ->
             let
                 setActive ai lc =
                     { lc | active = ai == i }
+
                 c =
                     List.indexedMap setActive model.labelClasses
+
                 pg =
                     case List.filter .active c of
-                        [] -> NoShape
-                        x :: xs -> x.geom
+                        [] ->
+                            NoShape
+
+                        x :: _ ->
+                            x.geom
             in
             ( { model | labelClasses = c, pendingGeom = pg }, Cmd.none )
+
         ActivateShape i ->
             let
                 setActive ai s =
@@ -373,139 +451,293 @@ update msg model =
                         a =
                             if s.active then
                                 False
+
                             else
                                 ai == i
                     in
                     { s | active = a }
+
                 img =
                     currentImage model
+
                 shapes =
                     List.indexedMap setActive img.shapes
+
                 p =
                     case model.pending of
-                        [] -> []
-                        x :: xs -> { x | shapes = shapes } :: xs
+                        [] ->
+                            []
+
+                        x :: xs ->
+                            { x | shapes = shapes } :: xs
             in
             ( { model | pending = p }, Cmd.none )
+
         EditSelectOptions name ->
             let
                 optionsString =
                     Dict.get name model.metaData.dropdown
-                    |> Maybe.withDefault []
-                    |> String.join "\n"
+                        |> Maybe.withDefault []
+                        |> String.join "\n"
+
                 updated =
                     { model
-                    | editingSelectName = name
-                    , editingSelectOptions = optionsString
+                        | editingSelectName = name
+                        , editingSelectOptions = optionsString
                     }
             in
             ( updated, Cmd.none )
+
         CancelDialog ->
             let
                 updated =
                     { model
-                    | editingSelectName = ""
-                    , editingSelectOptions = ""
+                        | editingSelectName = ""
+                        , editingSelectOptions = ""
                     }
             in
             ( updated, Cmd.none )
+
         SaveEditingSelect ->
             let
                 optionList =
                     String.split "\n" model.editingSelectOptions
-                    |> List.map String.trim
-                    |> List.filter (not << String.isEmpty)
+                        |> List.map String.trim
+                        |> List.filter (not << String.isEmpty)
+
                 m =
                     model.metaData
+
                 d =
                     m.dropdown
+
                 metaData =
                     { m
-                    | dropdown = Dict.insert model.editingSelectName optionList d
+                        | dropdown = Dict.insert model.editingSelectName optionList d
                     }
+
                 updated =
                     { model
-                    | metaData = metaData
-                    , editingSelectName = ""
-                    , editingSelectOptions = ""
+                        | metaData = metaData
+                        , editingSelectName = ""
+                        , editingSelectOptions = ""
                     }
             in
             ( updated, Cmd.none )
+
         UpdateSelectOptions options ->
             ( { model | editingSelectOptions = options }, Cmd.none )
+
+        DownloadData ->
+            ( model
+            , Download.string "data.json" "application/json" <| Serialization.toJson model
+            )
+
         NavPrev ->
             navigateToPrevious model
+
         NavNext ->
             navigateToNext model
+
+
+loadPendingImages : String -> String -> Model -> Model
+loadPendingImages filename content model =
+    case extension filename of
+        ".txt" ->
+            loadText content model
+
+        ".json" ->
+            loadJson content model
+
+        _ ->
+            model
+
+
+
+-- TODO: error message
+
+
+loadText : String -> Model -> Model
+loadText content model =
+    let
+        images =
+            content
+                |> String.trim
+                |> String.split "\n"
+                |> Set.fromList
+                |> Set.toList
+                |> List.map (\url -> { initImage | url = url })
+    in
+    { model | pending = model.pending ++ images }
+
+
+loadJson : String -> Model -> Model
+loadJson content model =
+    let
+        document =
+            case fromJson content of
+                Ok p_ ->
+                    p_
+
+                Err _ ->
+                    initDocument
+
+        toLabelClass shape =
+            let
+                pg =
+                    case shape.geom of
+                        Rect _ _ ->
+                            PendingRect []
+
+                        Quad _ _ _ _ ->
+                            PendingQuad []
+            in
+            ( shape.label, pg )
+
+        labelClasses =
+            List.concatMap .shapes document.data
+                |> List.map toLabelClass
+                -- unique labels only
+                |> Dict.fromList
+                |> Dict.toList
+                |> List.map (\( l, g ) -> LabelClass l g False)
+
+        labels =
+            List.concatMap (.labels >> Dict.toList) document.data
+                |> Dict.fromList
+                |> Dict.toList
+                |> List.map (\( k, _ ) -> LabelClass k (pendingTypeFromKey k document.meta.dropdown) False)
+    in
+    { model
+        | pending = document.data
+        , labelClasses = labelClasses ++ labels
+        , metaData = document.meta
+    }
+
+
+splitExtension : String -> ( String, String )
+splitExtension path =
+    case String.reverse path |> String.split "." of
+        [] ->
+            ( "", "" )
+
+        [ a ] ->
+            ( String.reverse a, "" )
+
+        x :: xs ->
+            ( String.reverse <| String.join "." xs, "." ++ String.reverse x )
+
+
+extension : String -> String
+extension =
+    splitExtension >> Tuple.second
+
 
 pendingTypeFromKey : String -> Dict String (List String) -> PendingGeometry
 pendingTypeFromKey key dropdowns =
     case Dict.get key dropdowns of
-        Nothing -> PendingLabel
-        Just _ -> PendingDropDown
+        Nothing ->
+            PendingLabel
 
-navigateToPrevious : Model -> (Model, Cmd Msg)
+        Just _ ->
+            PendingDropDown
+
+
+navigateToPrevious : Model -> ( Model, Cmd Msg )
 navigateToPrevious model =
     let
         nextPending =
             case model.pendingGeom of
-                NoShape -> NoShape
-                PendingLabel -> NoShape
-                PendingDropDown -> PendingDropDown
-                PendingRect _ -> PendingRect []
-                PendingQuad _ -> PendingQuad []
+                NoShape ->
+                    NoShape
+
+                PendingLabel ->
+                    NoShape
+
+                PendingDropDown ->
+                    PendingDropDown
+
+                PendingRect _ ->
+                    PendingRect []
+
+                PendingQuad _ ->
+                    PendingQuad []
+
         processed =
             List.drop 1 model.processed
+
         img =
             List.head model.processed
+
         pending =
             case img of
                 Nothing ->
                     model.pending
+
                 Just i ->
                     i :: model.pending
+
         cmd =
             loadImageCmd pending
     in
-    ({ model | pending = pending, processed = processed, pendingGeom = nextPending }
+    ( { model | pending = pending, processed = processed, pendingGeom = nextPending }
     , cmd
     )
 
-navigateToNext : Model -> (Model, Cmd Msg)
+
+navigateToNext : Model -> ( Model, Cmd Msg )
 navigateToNext model =
     let
         nextPending =
             case model.pendingGeom of
-                NoShape -> NoShape
-                PendingLabel -> NoShape
-                PendingDropDown -> PendingDropDown
-                PendingRect _ -> PendingRect []
-                PendingQuad _ -> PendingQuad []
+                NoShape ->
+                    NoShape
+
+                PendingLabel ->
+                    NoShape
+
+                PendingDropDown ->
+                    PendingDropDown
+
+                PendingRect _ ->
+                    PendingRect []
+
+                PendingQuad _ ->
+                    PendingQuad []
+
         pending =
             List.drop 1 model.pending
+
         img =
             List.head model.pending
+
         processed =
             case img of
                 Nothing ->
                     model.processed
+
                 Just i ->
                     i :: model.processed
+
         cmd =
             loadImageCmd pending
     in
-    ({ model | pending = pending, processed = processed, pendingGeom = nextPending }
+    ( { model | pending = pending, processed = processed, pendingGeom = nextPending }
     , cmd
     )
+
 
 inCanvas : Point -> Offset -> Bool
 inCanvas p o =
     p.x >= 0 && p.y >= 0 && p.x <= o.w && p.y <= o.h
 
+
 moveDraggingPoint : Maybe FocusPoint -> Point -> Image -> Image
 moveDraggingPoint drag point image =
     case drag of
-        Nothing -> image
+        Nothing ->
+            image
+
         Just (FocusPoint shapeIdx pointIdx) ->
             let
                 updateShape i shape =
@@ -519,43 +751,71 @@ moveDraggingPoint drag point image =
                                                 let
                                                     delta =
                                                         Offset (point.x - p.x) (point.y - p.y)
+
                                                     offset =
                                                         Offset (o.w - delta.w) (o.h - delta.h)
                                                 in
                                                 Rect point offset
-                                            1 -> Rect p (Offset (point.x - p.x) (point.y - p.y))
-                                            _ -> shape.geom
+
+                                            1 ->
+                                                Rect p (Offset (point.x - p.x) (point.y - p.y))
+
+                                            _ ->
+                                                shape.geom
+
                                     Quad tl tr br bl ->
                                         case pointIdx of
-                                            0 -> Quad point tr br bl
-                                            1 -> Quad tl point br bl
-                                            2 -> Quad tl tr point bl
-                                            3 -> Quad tl tr br point
-                                            _ -> shape.geom
+                                            0 ->
+                                                Quad point tr br bl
+
+                                            1 ->
+                                                Quad tl point br bl
+
+                                            2 ->
+                                                Quad tl tr point bl
+
+                                            3 ->
+                                                Quad tl tr br point
+
+                                            _ ->
+                                                shape.geom
                         in
                         { shape | geom = g }
+
                     else
                         shape
             in
             { image | shapes = List.indexedMap updateShape image.shapes }
+
 
 currentImage : Model -> Image
 currentImage model =
     List.head model.pending
         |> Maybe.withDefault initImage
 
+
 toQuad : Geometry -> Geometry
 toQuad g =
     case g of
         Rect p o ->
             let
-                tl = p
-                tr = { tl | x = p.x + o.w }
-                br = { tr | y = p.y + o.h }
-                bl = { tl | y = p.y + o.h }
+                tl =
+                    p
+
+                tr =
+                    { tl | x = p.x + o.w }
+
+                br =
+                    { tr | y = p.y + o.h }
+
+                bl =
+                    { tl | y = p.y + o.h }
             in
             Quad tl tr br bl
-        Quad _ _ _ _ -> g
+
+        Quad _ _ _ _ ->
+            g
+
 
 addPoint : Model -> Point -> Model
 addPoint m p =
@@ -564,85 +824,124 @@ addPoint m p =
             case m.pendingGeom of
                 NoShape ->
                     NoShape
+
                 PendingLabel ->
                     NoShape
-                PendingDropDown -> PendingDropDown
+
+                PendingDropDown ->
+                    PendingDropDown
+
                 PendingRect points ->
-                    PendingRect (points ++ [p])
+                    PendingRect (points ++ [ p ])
+
                 PendingQuad points ->
-                    PendingQuad (points ++ [p])
+                    PendingQuad (points ++ [ p ])
+
         nextPending =
             case m.pendingGeom of
                 NoShape ->
                     NoShape
-                PendingDropDown -> PendingDropDown
+
+                PendingDropDown ->
+                    PendingDropDown
+
                 PendingLabel ->
                     NoShape
-                PendingRect points ->
+
+                PendingRect _ ->
                     PendingRect []
-                PendingQuad points ->
+
+                PendingQuad _ ->
                     PendingQuad []
+
         label =
             case List.filter .active m.labelClasses of
-                [] -> ""
-                x :: xs -> x.label
+                [] ->
+                    ""
+
+                x :: _ ->
+                    x.label
+
         g =
             completedShape pg
+
         current =
             currentImage m
+
         current_ =
             case g of
-                Nothing -> current
-                Just s -> { current | shapes = (Shape label s False) :: current.shapes }
+                Nothing ->
+                    current
+
+                Just s ->
+                    { current | shapes = Shape label s False :: current.shapes }
+
         newPending =
-            current_ :: (List.drop 1 m.pending)
+            current_ :: List.drop 1 m.pending
+
         updated =
             case g of
                 Nothing ->
                     { m | pendingGeom = pg }
-                Just cg ->
+
+                Just _ ->
                     { m | pendingGeom = nextPending, pending = newPending }
     in
     updated
 
+
 completedShape : PendingGeometry -> Maybe Geometry
 completedShape pg =
     case pg of
-        NoShape -> Nothing
-        PendingLabel -> Nothing
-        PendingDropDown -> Nothing
+        NoShape ->
+            Nothing
+
+        PendingLabel ->
+            Nothing
+
+        PendingDropDown ->
+            Nothing
+
         PendingRect points ->
             if List.length points < 2 then
                 Nothing
+
             else
                 let
                     tl =
                         List.head points
                             |> Maybe.withDefault (Point -1 -1)
+
                     br =
                         List.drop 1 points
                             |> List.head
                             |> Maybe.withDefault (Point -1 -1)
+
                     o =
                         Offset (br.x - tl.x) (br.y - tl.y)
                 in
                 Just (Rect tl o)
+
         PendingQuad points ->
             if List.length points < 4 then
                 Nothing
+
             else
                 let
                     tl =
                         List.head points
                             |> Maybe.withDefault (Point -1 -1)
+
                     tr =
                         List.drop 1 points
                             |> List.head
                             |> Maybe.withDefault (Point -1 -1)
+
                     br =
                         List.drop 2 points
                             |> List.head
                             |> Maybe.withDefault (Point -1 -1)
+
                     bl =
                         List.drop 3 points
                             |> List.head
@@ -650,24 +949,9 @@ completedShape pg =
                 in
                 Just (Quad tl tr br bl)
 
+
 loadImageCmd : List Image -> Cmd Msg
 loadImageCmd pending =
     List.head pending
         |> Maybe.map (\i -> loadImage i.url)
         |> Maybe.withDefault Cmd.none
-
-uploadHandler : NativeFile -> Cmd Msg
-uploadHandler file =
-    let
-        mimeType =
-            file.mimeType
-                |> Maybe.andThen (\t -> Just (MimeType.toString t))
-                |> Maybe.withDefault "UNKNOWN"
-        cmd =
-            if mimeType == "application/json" || String.endsWith ".json" file.name then
-                OnJsonContent
-            else
-                OnTextContent
-    in
-    FileReader.readAsTextFile file.blob
-        |> Task.attempt cmd

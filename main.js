@@ -1,12 +1,18 @@
 'use strict'
-const electron = require('electron')
+const {
+  app,
+  BrowserWindow,
+  ipcMain
+} = require("electron")
+
+app.allowRendererProcessReuse = true;
+
+const path = require("path")
+
 let chokidar = null;
 if (process.env.NODE_ENV == 'development') {
   chokidar = require('chokidar')
 }
-
-const app = electron.app
-const BrowserWindow = electron.BrowserWindow
 
 let mainWindow // saves a global reference to mainWindow so it doesn't get garbage collected
 
@@ -22,18 +28,23 @@ if (chokidar) {
   })
 }
 
-// This will create our app window, no surprise there
-function createWindow () {
+function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1024, 
+    width: 1024,
     height: 768,
     minWidth: 640,
     minHeight: 480,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+      //preload: path.join(__dirname, "preload.js"),
+    }
   })
 
   // display the index.html file
-  mainWindow.loadURL(`file://${ __dirname }/index.html`)
-  
+  mainWindow.loadFile(path.join(__dirname, "dist/index.html"))
+
   // open dev tools by default so we can see any console errors
   if (process.env.NODE_ENV == 'development') {
     mainWindow.webContents.openDevTools()

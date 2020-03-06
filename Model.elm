@@ -1,33 +1,39 @@
 module Model exposing (..)
 
-import DropZone
 import Dict exposing (Dict)
+import File exposing (File)
+
 
 type alias Point =
-    { x: Int
-    , y: Int
+    { x : Int
+    , y : Int
     }
+
 
 type alias Line =
-    { start: Point
-    , end: Point
+    { start : Point
+    , end : Point
     }
+
 
 type alias Graphics =
-    { points: List Point
-    , lines: List Line
-    , anchors: List Point
-    , highlight: List Line
+    { points : List Point
+    , lines : List Line
+    , anchors : List Point
+    , highlight : List Line
     }
 
+
 type alias Offset =
-    { w: Int
-    , h: Int
+    { w : Int
+    , h : Int
     }
+
 
 type Geometry
     = Rect Point Offset
     | Quad Point Point Point Point
+
 
 type PendingGeometry
     = NoShape
@@ -36,20 +42,28 @@ type PendingGeometry
     | PendingRect (List Point)
     | PendingQuad (List Point)
 
+
+
 -- index of geom in shape, point in geom for hover/drag
-type FocusPoint = FocusPoint Int Int
+
+
+type FocusPoint
+    = FocusPoint Int Int
+
 
 type alias Shape =
-    { label: String
-    , geom: Geometry
-    , active: Bool
+    { label : String
+    , geom : Geometry
+    , active : Bool
     }
 
+
 type alias LabelClass =
-    { label: String
-    , geom: PendingGeometry
-    , active: Bool
+    { label : String
+    , geom : PendingGeometry
+    , active : Bool
     }
+
 
 initLabelClass : LabelClass
 initLabelClass =
@@ -58,75 +72,89 @@ initLabelClass =
         NoShape
         False
 
+
 type LabelType
     = Label
     | DropDown
 
-type alias MetaData = 
-    { dropdown: Dict String (List String)
+
+type alias MetaData =
+    { dropdown : Dict String (List String)
     }
+
 
 initMetaData : MetaData
-initMetaData = 
+initMetaData =
     MetaData Dict.empty
 
+
 type alias Document =
-    { data: List Image,
-      meta: MetaData
+    { data : List Image
+    , meta : MetaData
     }
-    
+
+
 initDocument : Document
-initDocument = 
+initDocument =
     Document [] initMetaData
 
+
 type alias Image =
-    { url: String
-    , shapes: List Shape
-    , labels: Dict String String
+    { url : String
+    , shapes : List Shape
+    , labels : Dict String String
     }
+
 
 initImage : Image
 initImage =
     Image "" [] Dict.empty
 
-type alias DropDownData = Dict String (List String)
+
+type alias DropDownData =
+    Dict String (List String)
+
 
 type alias Model =
-    { pending: List Image
-    , processed: List Image
-    , resetRequested: Bool
-    , pendingGeom: PendingGeometry
-    , labelClasses: List LabelClass
-    , pendingClass: LabelClass
-    , dragPoint: Maybe FocusPoint
-    , hoverPoint: Maybe FocusPoint
-    , imageSize: Offset
-    , panelSize: Offset
-    , scale: Float
-    , dropZone: DropZone.Model
-    , metaData: MetaData
-    , editingSelectName: String
-    , editingSelectOptions: String
+    { pending : List Image
+    , processed : List Image
+    , resetRequested : Bool
+    , pendingGeom : PendingGeometry
+    , labelClasses : List LabelClass
+    , pendingClass : LabelClass
+    , dragPoint : Maybe FocusPoint
+    , hoverPoint : Maybe FocusPoint
+    , draggingFiles : Bool
+    , droppedFiles : List File
+    , imageSize : Offset
+    , panelSize : Offset
+    , scale : Float
+    , metaData : MetaData
+    , editingSelectName : String
+    , editingSelectOptions : String
     }
+
 
 init : Model
 init =
-    Model
-        []
-        []
-        False
-        NoShape
-        []
-        initLabelClass
-        Nothing
-        Nothing
-        (Offset 2000 2000)
-        (Offset 2000 2000)
-        1.0
-        DropZone.init
-        initMetaData
-        ""
-        ""
+    { pending = []
+    , processed = []
+    , resetRequested = False
+    , pendingGeom = NoShape
+    , labelClasses = []
+    , pendingClass = initLabelClass
+    , dragPoint = Nothing
+    , hoverPoint = Nothing
+    , draggingFiles = False
+    , droppedFiles = []
+    , imageSize = Offset 2000 2000
+    , panelSize = Offset 2000 2000
+    , scale = 1.0
+    , metaData = initMetaData
+    , editingSelectName = ""
+    , editingSelectOptions = ""
+    }
+
 
 graphics : Model -> Graphics
 graphics m =
@@ -134,19 +162,32 @@ graphics m =
         current =
             List.head m.pending
                 |> Maybe.withDefault initImage
+
         lines =
             List.map .geom current.shapes
                 |> List.concatMap toLines
+
         anchors =
             List.map .geom current.shapes
                 |> List.concatMap toAnchors
+
         points =
             case m.pendingGeom of
-                NoShape -> []
-                PendingLabel -> []
-                PendingDropDown -> []
-                PendingRect l -> l
-                PendingQuad l -> l
+                NoShape ->
+                    []
+
+                PendingLabel ->
+                    []
+
+                PendingDropDown ->
+                    []
+
+                PendingRect l ->
+                    l
+
+                PendingQuad l ->
+                    l
+
         highlight =
             List.filter .active current.shapes
                 |> List.concatMap (.geom >> toLines)
@@ -157,41 +198,48 @@ graphics m =
         (scalePoints m.scale anchors)
         (scaleLines m.scale highlight)
 
+
 unscalePoint : Float -> Point -> Point
 unscalePoint s p =
     let
         unscaled i =
-            (round ((toFloat i) / s))
+            round (toFloat i / s)
     in
     Point (unscaled p.x) (unscaled p.y)
+
 
 scalePoint : Float -> Point -> Point
 scalePoint s p =
     let
         scaled i =
-            (round ((toFloat i) * s))
+            round (toFloat i * s)
     in
     Point (scaled p.x) (scaled p.y)
+
 
 scalePoints : Float -> List Point -> List Point
 scalePoints s points =
     List.map (scalePoint s) points
 
+
 scaleLines : Float -> List Line -> List Line
 scaleLines s lines =
     let
-        scaleLine {start, end} =
+        scaleLine { start, end } =
             Line (scalePoint s start) (scalePoint s end)
     in
     List.map scaleLine lines
+
 
 toLines : Geometry -> List Line
 toLines g =
     case g of
         Rect p o ->
             rectLines p o
+
         Quad p1 p2 p3 p4 ->
             quadLines p1 p2 p3 p4
+
 
 toAnchors : Geometry -> List Point
 toAnchors g =
@@ -200,23 +248,33 @@ toAnchors g =
             [ p
             , Point (p.x + o.w) (p.y + o.h)
             ]
+
         Quad p1 p2 p3 p4 ->
-            [p1, p2, p3, p4]
+            [ p1, p2, p3, p4 ]
+
 
 rectLines : Point -> Offset -> List Line
 rectLines p o =
     let
-        tl = p
-        tr = Point (p.x + o.w) p.y
-        br = Point (p.x + o.w) (p.y + o.h)
-        bl = Point p.x (p.y + o.h)
+        tl =
+            p
+
+        tr =
+            Point (p.x + o.w) p.y
+
+        br =
+            Point (p.x + o.w) (p.y + o.h)
+
+        bl =
+            Point p.x (p.y + o.h)
     in
     quadLines tl tr br bl
 
+
 quadLines : Point -> Point -> Point -> Point -> List Line
 quadLines tl tr br bl =
-        [ Line tl tr
-        , Line tr br
-        , Line br bl
-        , Line bl tl
-        ]
+    [ Line tl tr
+    , Line tr br
+    , Line br bl
+    , Line bl tl
+    ]
