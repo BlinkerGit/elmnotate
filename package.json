@@ -7,7 +7,7 @@
   "main": "main.js",
   "scripts": {
     "clean": "rm -rf dist/*",
-    "dist": "electron-builder",
+    "dist": "electron-builder -mwl",
     "elm:make": "npm run clean && parcel build index.html --public-url ./",
     "elm:watch": "npm run clean && parcel index.html --public-url ./",
     "pack": "npm run elm:make && electron-builder --dir",
