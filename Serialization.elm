@@ -1,9 +1,9 @@
-module Serialization exposing (..)
+module Serialization exposing (fromJson, toJson)
 
 import Array
 import Dict
-import Json.Decode as Dec
-import Json.Encode exposing (Value, encode, int, list, object, string)
+import Json.Decode as D exposing (Decoder)
+import Json.Encode as E exposing (Value)
 import Model exposing (Document, Geometry(..), Image, LabelType(..), MetaData, Model, Offset, Point, Shape)
 
 
@@ -15,20 +15,23 @@ toJson m =
 
 toString : Value -> String
 toString v =
-    encode 0 v
+    E.encode 0 v
 
 
 serialized : Model -> Value
 serialized m =
-    object
-        [ ( "data", list serializedImage m.processed )
+    E.object
+        [ ( "data", E.list serializedImage m.processed )
         , ( "meta"
-          , object
-                [ ( "dropdown"
-                  , object <|
-                        List.map (\( k, v ) -> ( k, list string v )) <|
-                            Dict.toList m.metaData.dropdown
+          , E.object
+                [ ( "dropdowns"
+                  , E.object <|
+                        List.map (\( k, v ) -> ( k, E.list E.string v )) <|
+                            Dict.toList m.metaData.dropdowns
                   )
+                , ( "labels", E.list E.string m.metaData.labels )
+                , ( "quads", E.list E.string m.metaData.quads )
+                , ( "rects", E.list E.string m.metaData.rects )
                 ]
           )
         ]
@@ -36,12 +39,12 @@ serialized m =
 
 serializedImage : Image -> Value
 serializedImage i =
-    object
-        [ ( "url", string i.url )
-        , ( "shapes", list serializedShape i.shapes )
+    E.object
+        [ ( "url", E.string i.url )
+        , ( "shapes", E.list serializedShape i.shapes )
         , ( "labels"
-          , object <|
-                List.map (\( k, v ) -> ( k, string v )) <|
+          , E.object <|
+                List.map (\( k, v ) -> ( k, E.string v )) <|
                     Dict.toList i.labels
           )
         ]
@@ -58,8 +61,8 @@ serializedShape s =
                 Quad _ _ _ _ ->
                     "quad"
     in
-    object
-        [ ( "label", string s.label )
+    E.object
+        [ ( "label", E.string s.label )
         , ( shapeType, serializedGeom s.geom )
         ]
 
@@ -68,66 +71,92 @@ serializedGeom : Geometry -> Value
 serializedGeom g =
     case g of
         Rect point offset ->
-            list int [ point.x, point.y, offset.w, offset.h ]
+            E.list E.int [ point.x, point.y, offset.w, offset.h ]
 
         Quad p1 p2 p3 p4 ->
-            list int [ p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y ]
+            E.list E.int [ p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y ]
 
 
-fromJson : String -> Result Dec.Error Document
+fromJson : String -> Result D.Error Document
 fromJson s =
-    Dec.decodeString decodeDocument s
+    D.decodeString decodeDocument s
 
 
-decodeDocument : Dec.Decoder Document
+require : String -> Decoder a -> (a -> Decoder b) -> Decoder b
+require fieldName decoder continuation =
+    D.field fieldName decoder
+        |> D.andThen continuation
+
+
+allow : String -> Decoder a -> a -> (a -> Decoder b) -> Decoder b
+allow fieldName decoder fallback continuation =
+    D.oneOf
+        [ D.field fieldName decoder
+        , D.succeed fallback
+        ]
+        |> D.andThen continuation
+
+
+decodeDocument : D.Decoder Document
 decodeDocument =
-    Dec.map2 Document
-        (Dec.field "data" (Dec.list decodeImage))
-        (Dec.field "meta" decodeMeta)
+    require "data" (D.list decodeImage) <|
+        \data ->
+            require "meta" decodeMeta <|
+                \meta ->
+                    D.succeed
+                        { data = data
+                        , meta = meta
+                        }
 
 
-decodeMeta : Dec.Decoder MetaData
+decodeMeta : D.Decoder MetaData
 decodeMeta =
-    Dec.map MetaData
-        (Dec.field "dropdown" (Dec.dict (Dec.list Dec.string)))
+    allow "dropdowns" (D.dict (D.list D.string)) Dict.empty <|
+        \dropdowns ->
+            allow "labels" (D.list D.string) [] <|
+                \labels ->
+                    allow "quads" (D.list D.string) [] <|
+                        \quads ->
+                            allow "rects" (D.list D.string) [] <|
+                                \rects ->
+                                    D.succeed
+                                        { dropdowns = dropdowns
+                                        , labels = labels
+                                        , quads = quads
+                                        , rects = rects
+                                        }
 
 
-decodeImage : Dec.Decoder Image
+decodeImage : D.Decoder Image
 decodeImage =
-    Dec.map3 Image
-        (Dec.field "url" Dec.string)
-        (Dec.field "shapes" (Dec.list decodeShape))
-        (Dec.oneOf
-            [ Dec.field "labels" (Dec.dict Dec.string)
-            , Dec.succeed Dict.empty
-            ]
-        )
+    require "url" D.string <|
+        \url ->
+            allow "shapes" (D.list decodeShape) [] <|
+                \shapes ->
+                    allow "labels" (D.dict D.string) Dict.empty <|
+                        \labels ->
+                            D.succeed
+                                { url = url
+                                , shapes = shapes
+                                , labels = labels
+                                }
 
 
-decodeLabelType : String -> Dec.Decoder LabelType
-decodeLabelType val =
-    if val == "label" then
-        Dec.succeed <| Label
-
-    else
-        Dec.succeed <| DropDown
-
-
-decodeShape : Dec.Decoder Shape
+decodeShape : D.Decoder Shape
 decodeShape =
-    Dec.map3 Shape
-        (Dec.field "label" Dec.string)
-        (Dec.oneOf
-            [ Dec.field "rect" (Dec.list Dec.int)
-                |> Dec.andThen decodeRect
-            , Dec.field "quad" (Dec.list Dec.int)
-                |> Dec.andThen decodeQuad
+    D.map3 Shape
+        (D.field "label" D.string)
+        (D.oneOf
+            [ D.field "rect" (D.list D.int)
+                |> D.andThen decodeRect
+            , D.field "quad" (D.list D.int)
+                |> D.andThen decodeQuad
             ]
         )
-        (Dec.succeed False)
+        (D.succeed False)
 
 
-decodeRect : List Int -> Dec.Decoder Geometry
+decodeRect : List Int -> D.Decoder Geometry
 decodeRect points =
     let
         a =
@@ -145,10 +174,10 @@ decodeRect points =
         h =
             Array.get 3 a |> Maybe.withDefault -1
     in
-    Dec.succeed <| Rect (Point x y) (Offset w h)
+    D.succeed <| Rect (Point x y) (Offset w h)
 
 
-decodeQuad : List Int -> Dec.Decoder Geometry
+decodeQuad : List Int -> D.Decoder Geometry
 decodeQuad points =
     let
         a =
@@ -178,7 +207,7 @@ decodeQuad points =
         y4 =
             Array.get 7 a |> Maybe.withDefault -1
     in
-    Dec.succeed <|
+    D.succeed <|
         Quad
             (Point x1 y1)
             (Point x2 y2)

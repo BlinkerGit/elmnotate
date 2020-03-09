@@ -1,4 +1,4 @@
-port module Canvas exposing (..)
+port module Canvas exposing (clientDims, loadImage, navNext, navPrev, render)
 
 import Json.Encode exposing (Value)
 import Model exposing (Graphics)

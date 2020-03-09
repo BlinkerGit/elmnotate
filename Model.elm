@@ -36,8 +36,7 @@ type Geometry
 
 
 type PendingGeometry
-    = NoShape
-    | PendingLabel
+    = PendingLabel
     | PendingDropDown
     | PendingRect (List Point)
     | PendingQuad (List Point)
@@ -59,7 +58,7 @@ type alias Shape =
 
 
 type alias LabelClass =
-    { label : String
+    { name : String
     , geom : PendingGeometry
     , active : Bool
     }
@@ -67,10 +66,10 @@ type alias LabelClass =
 
 initLabelClass : LabelClass
 initLabelClass =
-    LabelClass
-        ""
-        NoShape
-        False
+    { name = ""
+    , geom = PendingLabel
+    , active = False
+    }
 
 
 type LabelType
@@ -79,13 +78,20 @@ type LabelType
 
 
 type alias MetaData =
-    { dropdown : Dict String (List String)
+    { dropdowns : Dict String (List String)
+    , labels : List String
+    , quads : List String
+    , rects : List String
     }
 
 
 initMetaData : MetaData
 initMetaData =
-    MetaData Dict.empty
+    { dropdowns = Dict.empty
+    , labels = []
+    , quads = []
+    , rects = []
+    }
 
 
 type alias Document =
@@ -96,7 +102,9 @@ type alias Document =
 
 initDocument : Document
 initDocument =
-    Document [] initMetaData
+    { data = []
+    , meta = initMetaData
+    }
 
 
 type alias Image =
@@ -108,7 +116,10 @@ type alias Image =
 
 initImage : Image
 initImage =
-    Image "" [] Dict.empty
+    { url = ""
+    , shapes = []
+    , labels = Dict.empty
+    }
 
 
 type alias DropDownData =
@@ -119,7 +130,7 @@ type alias Model =
     { pending : List Image
     , processed : List Image
     , resetRequested : Bool
-    , pendingGeom : PendingGeometry
+    , pendingGeom : Maybe PendingGeometry
     , labelClasses : List LabelClass
     , pendingClass : LabelClass
     , dragPoint : Maybe FocusPoint
@@ -140,7 +151,7 @@ init =
     { pending = []
     , processed = []
     , resetRequested = False
-    , pendingGeom = NoShape
+    , pendingGeom = Nothing
     , labelClasses = []
     , pendingClass = initLabelClass
     , dragPoint = Nothing
@@ -173,20 +184,14 @@ graphics m =
 
         points =
             case m.pendingGeom of
-                NoShape ->
-                    []
-
-                PendingLabel ->
-                    []
-
-                PendingDropDown ->
-                    []
-
-                PendingRect l ->
+                Just (PendingRect l) ->
                     l
 
-                PendingQuad l ->
+                Just (PendingQuad l) ->
                     l
+
+                _ ->
+                    []
 
         highlight =
             List.filter .active current.shapes

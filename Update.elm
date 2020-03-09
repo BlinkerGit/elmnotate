@@ -1,7 +1,7 @@
 module Update exposing (Msg(..), update)
 
 import Canvas exposing (loadImage, render)
-import Dict exposing (Dict)
+import Dict
 import File exposing (File)
 import File.Download as Download
 import Model
@@ -9,7 +9,6 @@ import Model
         ( FocusPoint(..)
         , Geometry(..)
         , Image
-        , LabelClass
         , LabelType(..)
         , Model
         , Offset
@@ -19,6 +18,7 @@ import Model
         , graphics
         , initDocument
         , initImage
+        , initLabelClass
         , unscalePoint
         )
 import Serialization exposing (fromJson)
@@ -47,7 +47,7 @@ type Msg
     | SelectRect
     | SelectLabel
     | SelectDropDown
-    | SetLabelClassLabel String
+    | SetLabelClassName String
     | SetImageLabel String String
     | SetImageDropDown String String
     | AddLabelClass
@@ -370,13 +370,13 @@ update msg model =
             in
             ( { model | pendingClass = p }, Cmd.none )
 
-        SetLabelClassLabel l ->
+        SetLabelClassName l ->
             let
                 p_ =
                     model.pendingClass
 
                 p =
-                    { p_ | label = l }
+                    { p_ | name = l }
             in
             ( { model | pendingClass = p }, Cmd.none )
 
@@ -422,7 +422,7 @@ update msg model =
                     model.labelClasses ++ [ model.pendingClass ]
 
                 p =
-                    LabelClass "" NoShape False
+                    initLabelClass
             in
             ( { model | labelClasses = c, pendingClass = p }, Cmd.none )
 
@@ -437,10 +437,10 @@ update msg model =
                 pg =
                     case List.filter .active c of
                         [] ->
-                            NoShape
+                            Nothing
 
                         x :: _ ->
-                            x.geom
+                            Just x.geom
             in
             ( { model | labelClasses = c, pendingGeom = pg }, Cmd.none )
 
@@ -476,7 +476,7 @@ update msg model =
         EditSelectOptions name ->
             let
                 optionsString =
-                    Dict.get name model.metaData.dropdown
+                    Dict.get name model.metaData.dropdowns
                         |> Maybe.withDefault []
                         |> String.join "\n"
 
@@ -509,11 +509,11 @@ update msg model =
                     model.metaData
 
                 d =
-                    m.dropdown
+                    m.dropdowns
 
                 metaData =
                     { m
-                        | dropdown = Dict.insert model.editingSelectName optionList d
+                        | dropdowns = Dict.insert model.editingSelectName optionList d
                     }
 
                 updated =
@@ -553,10 +553,6 @@ loadPendingImages filename content model =
             model
 
 
-
--- TODO: error message
-
-
 loadText : String -> Model -> Model
 loadText content model =
     let
@@ -582,35 +578,27 @@ loadJson content model =
                 Err _ ->
                     initDocument
 
-        toLabelClass shape =
-            let
-                pg =
-                    case shape.geom of
-                        Rect _ _ ->
-                            PendingRect []
-
-                        Quad _ _ _ _ ->
-                            PendingQuad []
-            in
-            ( shape.label, pg )
-
-        labelClasses =
-            List.concatMap .shapes document.data
-                |> List.map toLabelClass
-                -- unique labels only
-                |> Dict.fromList
-                |> Dict.toList
-                |> List.map (\( l, g ) -> LabelClass l g False)
-
         labels =
-            List.concatMap (.labels >> Dict.toList) document.data
-                |> Dict.fromList
+            document.meta.labels
+                |> List.map (\name -> { name = name, geom = PendingLabel, active = False })
+
+        dropdowns =
+            document.meta.dropdowns
                 |> Dict.toList
-                |> List.map (\( k, _ ) -> LabelClass k (pendingTypeFromKey k document.meta.dropdown) False)
+                |> List.map Tuple.first
+                |> List.map (\name -> { name = name, geom = PendingDropDown, active = False })
+
+        quads =
+            document.meta.quads
+                |> List.map (\name -> { name = name, geom = PendingQuad [], active = False })
+
+        rects =
+            document.meta.rects
+                |> List.map (\name -> { name = name, geom = PendingRect [], active = False })
     in
     { model
         | pending = document.data
-        , labelClasses = labelClasses ++ labels
+        , labelClasses = labels ++ dropdowns ++ rects ++ quads
         , metaData = document.meta
     }
 
@@ -633,35 +621,32 @@ extension =
     splitExtension >> Tuple.second
 
 
-pendingTypeFromKey : String -> Dict String (List String) -> PendingGeometry
-pendingTypeFromKey key dropdowns =
-    case Dict.get key dropdowns of
-        Nothing ->
-            PendingLabel
 
-        Just _ ->
-            PendingDropDown
+-- keep current pending geometry selection, but remove any points from rects/quads
+
+
+nextPendingGeom : Maybe PendingGeometry -> Maybe PendingGeometry
+nextPendingGeom mpg =
+    mpg
+        |> Maybe.map
+            (\pg ->
+                case pg of
+                    PendingRect _ ->
+                        PendingRect []
+
+                    PendingQuad _ ->
+                        PendingQuad []
+
+                    _ ->
+                        pg
+            )
 
 
 navigateToPrevious : Model -> ( Model, Cmd Msg )
 navigateToPrevious model =
     let
         nextPending =
-            case model.pendingGeom of
-                NoShape ->
-                    NoShape
-
-                PendingLabel ->
-                    NoShape
-
-                PendingDropDown ->
-                    PendingDropDown
-
-                PendingRect _ ->
-                    PendingRect []
-
-                PendingQuad _ ->
-                    PendingQuad []
+            nextPendingGeom model.pendingGeom
 
         processed =
             List.drop 1 model.processed
@@ -689,21 +674,7 @@ navigateToNext : Model -> ( Model, Cmd Msg )
 navigateToNext model =
     let
         nextPending =
-            case model.pendingGeom of
-                NoShape ->
-                    NoShape
-
-                PendingLabel ->
-                    NoShape
-
-                PendingDropDown ->
-                    PendingDropDown
-
-                PendingRect _ ->
-                    PendingRect []
-
-                PendingQuad _ ->
-                    PendingQuad []
+            nextPendingGeom model.pendingGeom
 
         pending =
             List.drop 1 model.pending
@@ -821,38 +792,22 @@ addPoint : Model -> Point -> Model
 addPoint m p =
     let
         pg =
-            case m.pendingGeom of
-                NoShape ->
-                    NoShape
+            m.pendingGeom
+                |> Maybe.map
+                    (\pg_ ->
+                        case pg_ of
+                            PendingRect points ->
+                                PendingRect (points ++ [ p ])
 
-                PendingLabel ->
-                    NoShape
+                            PendingQuad points ->
+                                PendingQuad (points ++ [ p ])
 
-                PendingDropDown ->
-                    PendingDropDown
-
-                PendingRect points ->
-                    PendingRect (points ++ [ p ])
-
-                PendingQuad points ->
-                    PendingQuad (points ++ [ p ])
+                            _ ->
+                                pg_
+                    )
 
         nextPending =
-            case m.pendingGeom of
-                NoShape ->
-                    NoShape
-
-                PendingDropDown ->
-                    PendingDropDown
-
-                PendingLabel ->
-                    NoShape
-
-                PendingRect _ ->
-                    PendingRect []
-
-                PendingQuad _ ->
-                    PendingQuad []
+            nextPendingGeom m.pendingGeom
 
         label =
             case List.filter .active m.labelClasses of
@@ -860,10 +815,11 @@ addPoint m p =
                     ""
 
                 x :: _ ->
-                    x.label
+                    x.name
 
         g =
-            completedShape pg
+            pg
+                |> Maybe.andThen completedShape
 
         current =
             currentImage m
@@ -893,15 +849,6 @@ addPoint m p =
 completedShape : PendingGeometry -> Maybe Geometry
 completedShape pg =
     case pg of
-        NoShape ->
-            Nothing
-
-        PendingLabel ->
-            Nothing
-
-        PendingDropDown ->
-            Nothing
-
         PendingRect points ->
             if List.length points < 2 then
                 Nothing
@@ -948,6 +895,9 @@ completedShape pg =
                             |> Maybe.withDefault (Point -1 -1)
                 in
                 Just (Quad tl tr br bl)
+
+        _ ->
+            Nothing
 
 
 loadImageCmd : List Image -> Cmd Msg

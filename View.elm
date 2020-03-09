@@ -3,7 +3,6 @@ module View exposing (view)
 import Dialog
 import Dict
 import File
-import File.Download as Download
 import Html
     exposing
         ( Attribute
@@ -18,7 +17,6 @@ import Html
         , li
         , nav
         , option
-        , p
         , select
         , span
         , text
@@ -30,7 +28,6 @@ import Html.Attributes
         ( class
         , disabled
         , height
-        , href
         , id
         , placeholder
         , rows
@@ -45,7 +42,6 @@ import Json.Decode as D
 import Model
     exposing
         ( Geometry(..)
-        , Image
         , LabelClass
         , LabelType(..)
         , Model
@@ -53,9 +49,7 @@ import Model
         , Shape
         , initImage
         )
-import Serialization
 import Update exposing (Msg(..))
-import Url
 
 
 view : Model -> Html Msg
@@ -317,9 +311,6 @@ sidebar model =
 pGeomLabel : PendingGeometry -> String
 pGeomLabel pg =
     case pg of
-        NoShape ->
-            "Shape"
-
         PendingLabel ->
             "Label"
 
@@ -362,7 +353,7 @@ classList model =
                                     [ class "btn btn-fw btn-outline-primary dropdown-toggle"
                                     , onClick ToggleGeomMenu
                                     ]
-                                    [ text (pGeomLabel model.pendingClass.geom) ]
+                                    [ text <| pGeomLabel model.pendingClass.geom ]
                                 , div [ class menuClass ]
                                     [ a
                                         [ class "dropdown-item"
@@ -388,8 +379,8 @@ classList model =
                                 ]
                             , input
                                 [ class "form-control form-control-xs mr-2"
-                                , value model.pendingClass.label
-                                , onInput SetLabelClassLabel
+                                , value model.pendingClass.name
+                                , onInput SetLabelClassName
                                 , placeholder "label"
                                 ]
                                 []
@@ -423,21 +414,21 @@ classListItem index lc =
             PendingDropDown ->
                 button
                     [ class buttonClass
-                    , onClick (EditSelectOptions lc.label)
+                    , onClick (EditSelectOptions lc.name)
                     ]
                     [ text "Select" ]
 
-            _ ->
+            g ->
                 button
                     [ class buttonClass
                     , onClick (ActivateLabel index)
                     ]
-                    [ text (pGeomLabel lc.geom) ]
+                    [ text (pGeomLabel g) ]
         , input
             [ class "form-control form-control-xs mr-2"
             , placeholder "label"
             , disabled True
-            , value lc.label
+            , value lc.name
             ]
             []
         , button
@@ -505,20 +496,20 @@ labelList model =
 
 
 labelListItem : Model -> LabelClass -> Html Msg
-labelListItem model label_class =
+labelListItem model labelClass =
     let
         img =
             List.head model.pending
                 |> Maybe.withDefault initImage
 
         key =
-            label_class.label
+            labelClass.name
 
         val =
             Dict.get key img.labels
                 |> Maybe.withDefault ""
     in
-    case label_class.geom of
+    case labelClass.geom of
         PendingLabel ->
             li [ class "list-group-item form-inline" ]
                 [ span [ class "btn btn-xs btn-fw mr-2" ]
@@ -530,7 +521,7 @@ labelListItem model label_class =
             li [ class "list-group-item form-inline" ]
                 [ span [ class "btn btn-xs btn-fw mr-2" ]
                     [ text key ]
-                , labelListItemDropDown key val model.metaData.dropdown
+                , labelListItemDropDown key val model.metaData.dropdowns
                 ]
 
         _ ->
@@ -570,20 +561,6 @@ makeOption currentValue optionValue =
         , selected (currentValue == optionValue)
         ]
         [ text optionValue ]
-
-
-maybeConvertButton : Geometry -> Int -> Html Msg
-maybeConvertButton g index =
-    case g of
-        Rect _ _ ->
-            a
-                [ class "btn btn-warning btn-sm"
-                , onClick (ConvertRect index)
-                ]
-                [ text "convert" ]
-
-        Quad _ _ _ _ ->
-            text ""
 
 
 footer : Model -> Html Msg
